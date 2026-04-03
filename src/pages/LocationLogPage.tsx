@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { FieldDef } from '../data/locations'
 import { getLocationById } from '../data/locations'
+import { openMonthlyLogPdf } from '../pdf/monthlyLogPdf'
 import { saveEntry, subscribeEntriesForLocation } from '../services/entries'
 import type { LogEntry } from '../types/entry'
 
@@ -111,6 +112,58 @@ function formatSubmittedAt(entry: LogEntry): string {
   }
 }
 
+/** Stable key for grouping: "YYYY-MM", or "_unknown" if the date is missing or not YYYY-MM-DD. */
+function monthKeyFromEntryDate(entryDate: string): string {
+  const t = entryDate?.trim()
+  if (!t) return '_unknown'
+  const m = t.match(/^(\d{4})-(\d{2})/)
+  return m ? `${m[1]}-${m[2]}` : '_unknown'
+}
+
+function formatMonthHeading(ymKey: string): string {
+  if (ymKey === '_unknown') return 'Other'
+  const [y, mo] = ymKey.split('-').map(Number)
+  if (!y || !mo) return ymKey
+  return new Date(y, mo - 1, 1).toLocaleString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function compareEntryDateDesc(a: LogEntry, b: LogEntry): number {
+  const da = a.entryDate.trim()
+  const db = b.entryDate.trim()
+  if (da !== db) return db.localeCompare(da)
+  const ta = a.submittedAt?.toMillis?.() ?? 0
+  const tb = b.submittedAt?.toMillis?.() ?? 0
+  return tb - ta
+}
+
+function SavedEntryCard({ entry, fields }: { entry: LogEntry; fields: FieldDef[] }) {
+  return (
+    <li className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 ring-1 ring-slate-100 sm:p-4">
+      <div className="flex flex-col gap-1 border-b border-slate-200/80 pb-3 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-2">
+        <span className="text-base font-semibold text-bpud-ink sm:text-sm">
+          {entry.entryDate || '—'}
+        </span>
+        <span className="text-sm text-slate-500 sm:text-xs">Submitted {formatSubmittedAt(entry)}</span>
+      </div>
+      <dl className="mt-4 grid gap-3 text-sm sm:mt-3 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-2">
+        {fields.map((f) => {
+          const v = entry.values[f.key]
+          const display = v !== undefined && v !== '' ? v : '—'
+          return (
+            <div key={f.key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+              <dt className="shrink-0 text-slate-500 sm:max-w-[40%]">{f.label}</dt>
+              <dd className="font-medium break-words text-slate-800 sm:flex-1">{display}</dd>
+            </div>
+          )
+        })}
+      </dl>
+    </li>
+  )
+}
+
 export function LocationLogPage() {
   const { locationId = '' } = useParams()
   const location = getLocationById(locationId)
@@ -120,11 +173,42 @@ export function LocationLogPage() {
   const [firestoreError, setFirestoreError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [openMonthKey, setOpenMonthKey] = useState<string | null>(null)
+
+  const entriesByMonth = useMemo(() => {
+    const map = new Map<string, LogEntry[]>()
+    for (const entry of entries) {
+      const key = monthKeyFromEntryDate(entry.entryDate)
+      const list = map.get(key)
+      if (list) list.push(entry)
+      else map.set(key, [entry])
+    }
+    for (const list of map.values()) {
+      list.sort(compareEntryDateDesc)
+    }
+    return map
+  }, [entries])
+
+  const monthKeysSorted = useMemo(() => {
+    const keys = [...entriesByMonth.keys()]
+    keys.sort((a, b) => {
+      if (a === '_unknown') return 1
+      if (b === '_unknown') return -1
+      return b.localeCompare(a)
+    })
+    return keys
+  }, [entriesByMonth])
+
+  const entriesForOpenMonth = openMonthKey ? (entriesByMonth.get(openMonthKey) ?? []) : []
 
   useEffect(() => {
     if (!location) return
     setValues(emptyStateForFields(location.fields))
   }, [location])
+
+  useEffect(() => {
+    setOpenMonthKey(null)
+  }, [locationId])
 
   useEffect(() => {
     if (!location) return
@@ -135,6 +219,12 @@ export function LocationLogPage() {
     )
     return () => unsub()
   }, [location])
+
+  useEffect(() => {
+    if (openMonthKey && !entriesByMonth.has(openMonthKey)) {
+      setOpenMonthKey(null)
+    }
+  }, [openMonthKey, entriesByMonth])
 
   const setField = useCallback((key: string, v: string) => {
     setValues((prev) => ({ ...prev, [key]: v }))
@@ -265,43 +355,68 @@ export function LocationLogPage() {
       <section className="rounded-2xl bg-white/95 p-5 shadow-xl shadow-black/15 ring-1 ring-white/60 sm:p-8">
         <h2 className="text-lg font-semibold text-bpud-deep sm:text-xl">Saved entries</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:mt-1">
-          Newest first for this location. On your phone, use Find on Page to search loaded entries.
+          {openMonthKey
+            ? 'Entries for the selected month (newest day first).'
+            : 'Choose a month to open its log entries. Months are newest first.'}
         </p>
 
         {entries.length === 0 ? (
           <p className="mt-8 text-center text-base text-slate-500 sm:text-sm">
             No entries yet for this site.
           </p>
-        ) : (
-          <ul className="mt-6 space-y-4">
-            {entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 ring-1 ring-slate-100 sm:p-4"
-              >
-                <div className="flex flex-col gap-1 border-b border-slate-200/80 pb-3 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-2">
-                  <span className="text-base font-semibold text-bpud-ink sm:text-sm">
-                    {entry.entryDate || '—'}
-                  </span>
-                  <span className="text-sm text-slate-500 sm:text-xs">
-                    Submitted {formatSubmittedAt(entry)}
-                  </span>
-                </div>
-                <dl className="mt-4 grid gap-3 text-sm sm:mt-3 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-2">
-                  {location.fields.map((f) => {
-                    const v = entry.values[f.key]
-                    const display = v !== undefined && v !== '' ? v : '—'
-                    return (
-                      <div key={f.key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-                        <dt className="shrink-0 text-slate-500 sm:max-w-[40%]">{f.label}</dt>
-                        <dd className="font-medium break-words text-slate-800 sm:flex-1">{display}</dd>
-                      </div>
-                    )
-                  })}
-                </dl>
-              </li>
-            ))}
+        ) : !openMonthKey ? (
+          <ul className="mt-6 space-y-3">
+            {monthKeysSorted.map((key) => {
+              const count = entriesByMonth.get(key)?.length ?? 0
+              const label = formatMonthHeading(key)
+              const monthEntries = entriesByMonth.get(key) ?? []
+              return (
+                <li key={key} className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setOpenMonthKey(key)}
+                    className="flex min-h-[52px] flex-1 items-center justify-between gap-4 rounded-xl border border-slate-200/90 bg-slate-50/80 px-4 py-3.5 text-left ring-1 ring-slate-100 transition hover:border-sky-200 hover:bg-sky-50/60 sm:min-h-[48px] sm:min-w-0 sm:py-3"
+                  >
+                    <span className="text-base font-semibold text-bpud-ink sm:text-sm">{label}</span>
+                    <span className="shrink-0 text-sm text-slate-500">
+                      {count} {count === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openMonthlyLogPdf({
+                        location,
+                        monthKey: key,
+                        entries: monthEntries,
+                      })
+                    }
+                    className="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-xl border border-sky-300/90 bg-white px-5 text-sm font-semibold text-sky-800 shadow-sm ring-1 ring-sky-100/80 transition hover:bg-sky-50 sm:min-h-[48px] sm:px-4"
+                  >
+                    View PDF
+                  </button>
+                </li>
+              )
+            })}
           </ul>
+        ) : (
+          <div className="mt-6 space-y-4">
+            <button
+              type="button"
+              onClick={() => setOpenMonthKey(null)}
+              className="inline-flex min-h-[44px] items-center text-sm font-medium text-sky-700 underline-offset-2 hover:underline"
+            >
+              ← All months
+            </button>
+            <h3 className="text-base font-semibold text-bpud-deep sm:text-sm">
+              {formatMonthHeading(openMonthKey)}
+            </h3>
+            <ul className="space-y-4">
+              {entriesForOpenMonth.map((entry) => (
+                <SavedEntryCard key={entry.id} entry={entry} fields={location.fields} />
+              ))}
+            </ul>
+          </div>
         )}
       </section>
     </div>
