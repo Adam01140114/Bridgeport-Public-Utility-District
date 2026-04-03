@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /logEntries/{entryId} {
+      // Replace with Firebase Authentication before production use.
+      allow read, write: if true;
+    }
+  }
+}
