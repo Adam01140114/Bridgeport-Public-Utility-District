@@ -6,8 +6,11 @@ import { HomePage } from './pages/HomePage'
 import { LocationLogPage } from './pages/LocationLogPage'
 
 export default function App() {
+  const base = import.meta.env.BASE_URL
+  const basename = base === '/' ? undefined : base.replace(/\/$/, '')
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <AppShell>
         <Routes>
           <Route path="/" element={<HomePage />} />
