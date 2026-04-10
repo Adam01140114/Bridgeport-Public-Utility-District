@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { FieldDef } from '../data/locations'
 import { getLocationById } from '../data/locations'
+import { downloadMonthlyLogXlsx } from '../excel/monthlyLogXlsx'
 import { openMonthlyLogPdf } from '../pdf/monthlyLogPdf'
-import { saveEntry, subscribeEntriesForLocation } from '../services/entries'
+import { deleteEntry, saveEntry, subscribeEntriesForLocation } from '../services/entries'
 import type { LogEntry } from '../types/entry'
 
 function emptyStateForFields(fields: FieldDef[]): Record<string, string> {
@@ -139,14 +140,34 @@ function compareEntryDateDesc(a: LogEntry, b: LogEntry): number {
   return tb - ta
 }
 
-function SavedEntryCard({ entry, fields }: { entry: LogEntry; fields: FieldDef[] }) {
+function SavedEntryCard({
+  entry,
+  fields,
+  onDelete,
+  deleteBusy,
+}: {
+  entry: LogEntry
+  fields: FieldDef[]
+  onDelete: () => void
+  deleteBusy: boolean
+}) {
   return (
     <li className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 ring-1 ring-slate-100 sm:p-4">
-      <div className="flex flex-col gap-1 border-b border-slate-200/80 pb-3 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-2">
-        <span className="text-base font-semibold text-bpud-ink sm:text-sm">
-          {entry.entryDate || '—'}
-        </span>
-        <span className="text-sm text-slate-500 sm:text-xs">Submitted {formatSubmittedAt(entry)}</span>
+      <div className="flex flex-col gap-2 border-b border-slate-200/80 pb-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-2">
+        <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-2">
+          <span className="text-base font-semibold text-bpud-ink sm:text-sm">
+            {entry.entryDate || '—'}
+          </span>
+          <span className="text-sm text-slate-500 sm:text-xs">Submitted {formatSubmittedAt(entry)}</span>
+        </div>
+        <button
+          type="button"
+          disabled={deleteBusy}
+          onClick={onDelete}
+          className="inline-flex min-h-[40px] shrink-0 items-center justify-center self-start rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-800 ring-1 ring-red-100/80 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[36px]"
+        >
+          {deleteBusy ? 'Deleting…' : 'Delete'}
+        </button>
       </div>
       <dl className="mt-4 grid gap-3 text-sm sm:mt-3 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-2">
         {fields.map((f) => {
@@ -174,6 +195,8 @@ export function LocationLogPage() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [openMonthKey, setOpenMonthKey] = useState<string | null>(null)
+  const [exportMonthKey, setExportMonthKey] = useState<string | null>(null)
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
 
   const entriesByMonth = useMemo(() => {
     const map = new Map<string, LogEntry[]>()
@@ -226,8 +249,30 @@ export function LocationLogPage() {
     }
   }, [openMonthKey, entriesByMonth])
 
+  useEffect(() => {
+    if (!exportMonthKey) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExportMonthKey(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [exportMonthKey])
+
   const setField = useCallback((key: string, v: string) => {
     setValues((prev) => ({ ...prev, [key]: v }))
+  }, [])
+
+  const handleDeleteEntry = useCallback(async (entry: LogEntry) => {
+    if (!window.confirm('Delete this entry? This cannot be undone.')) return
+    setDeletingEntryId(entry.id)
+    setFirestoreError(null)
+    try {
+      await deleteEntry(entry.id)
+    } catch (err) {
+      setFirestoreError(err instanceof Error ? err.message : 'Could not delete entry.')
+    } finally {
+      setDeletingEntryId(null)
+    }
   }, [])
 
   const entryDate = values.date ?? ''
@@ -369,7 +414,6 @@ export function LocationLogPage() {
             {monthKeysSorted.map((key) => {
               const count = entriesByMonth.get(key)?.length ?? 0
               const label = formatMonthHeading(key)
-              const monthEntries = entriesByMonth.get(key) ?? []
               return (
                 <li key={key} className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
                   <button
@@ -384,16 +428,10 @@ export function LocationLogPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      openMonthlyLogPdf({
-                        location,
-                        monthKey: key,
-                        entries: monthEntries,
-                      })
-                    }
+                    onClick={() => setExportMonthKey(key)}
                     className="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-xl border border-sky-300/90 bg-white px-5 text-sm font-semibold text-sky-800 shadow-sm ring-1 ring-sky-100/80 transition hover:bg-sky-50 sm:min-h-[48px] sm:px-4"
                   >
-                    View PDF
+                    Export
                   </button>
                 </li>
               )
@@ -413,12 +451,81 @@ export function LocationLogPage() {
             </h3>
             <ul className="space-y-4">
               {entriesForOpenMonth.map((entry) => (
-                <SavedEntryCard key={entry.id} entry={entry} fields={location.fields} />
+                <SavedEntryCard
+                  key={entry.id}
+                  entry={entry}
+                  fields={location.fields}
+                  deleteBusy={deletingEntryId === entry.id}
+                  onDelete={() => handleDeleteEntry(entry)}
+                />
               ))}
             </ul>
           </div>
         )}
       </section>
+
+      {exportMonthKey ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6"
+          role="presentation"
+          onClick={() => setExportMonthKey(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="export-dialog-title"
+            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl ring-1 ring-black/5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="export-dialog-title" className="text-lg font-semibold text-bpud-deep">
+              Export {formatMonthHeading(exportMonthKey)}
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Choose PDF to open a printable monthly log, or Excel to download a spreadsheet with
+              this month&apos;s entries.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  const list = entriesByMonth.get(exportMonthKey) ?? []
+                  openMonthlyLogPdf({
+                    location,
+                    monthKey: exportMonthKey,
+                    entries: list,
+                  })
+                  setExportMonthKey(null)
+                }}
+                className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-bpud-water px-5 text-sm font-semibold text-white shadow-md shadow-bpud-water/25 transition hover:bg-[#185a9e] sm:min-h-[44px]"
+              >
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const list = entriesByMonth.get(exportMonthKey) ?? []
+                  downloadMonthlyLogXlsx({
+                    location,
+                    monthKey: exportMonthKey,
+                    entries: list,
+                  })
+                  setExportMonthKey(null)
+                }}
+                className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-slate-100 transition hover:bg-slate-50 sm:min-h-[44px]"
+              >
+                Excel
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExportMonthKey(null)}
+              className="mt-4 w-full min-h-[44px] text-sm font-medium text-slate-600 underline-offset-2 hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -64,6 +64,19 @@ const liftStationFields: FieldDef[] = [
   },
 ]
 
+/** Same as other lift stations plus flow meter (Art Webb only). */
+const artWebbLiftStationFields: FieldDef[] = [
+  ...liftStationFields.slice(0, -1),
+  {
+    key: 'flowMeterRead',
+    label: 'Flow meter reading',
+    type: 'text',
+    placeholder: 'Reading',
+    gridClass: 'sm:col-span-1',
+  },
+  ...liftStationFields.slice(-1),
+]
+
 const twinLakesFields: FieldDef[] = [
   { key: 'date', label: 'Date', type: 'date', gridClass: 'sm:col-span-1' },
   { key: 'time', label: 'Time', type: 'time', gridClass: 'sm:col-span-1' },
@@ -306,8 +319,8 @@ export const LOCATIONS: LocationDef[] = [
   {
     id: 'art-webb-lift-station',
     name: 'Art Webb Lift Station',
-    shortDescription: 'Dual pump meter and run hours',
-    fields: liftStationFields,
+    shortDescription: 'Dual pump meter, flow meter, and run hours',
+    fields: artWebbLiftStationFields,
   },
   {
     id: 'stock-dr-lift-station',

@@ -1,70 +1,17 @@
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import type { FieldDef, LocationDef } from '../data/locations'
+import {
+  cellForField,
+  fieldByKey,
+  monthTitleLine,
+  sortChronological,
+} from '../export/entryFormatting'
 import type { LogEntry } from '../types/entry'
 
 const DISTRICT = 'Bridgeport Public Utility District'
 const MARGIN = 40
 const MIN_LIFT_ROWS = 15
-
-function formatShortDate(ymd: string): string {
-  const t = ymd?.trim()
-  const m = t?.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (!m) return t ?? ''
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-  })
-}
-
-/** HTML time inputs use 24h (e.g. "19:02"); PDF shows 12h with AM/PM. */
-function formatTimeAmPm(raw: string): string {
-  const t = raw?.trim()
-  if (!t) return ''
-  if (/\b(am|pm)\b/i.test(t)) return t
-  const m = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/)
-  if (!m) return t
-  const h24 = Number(m[1])
-  if (h24 > 23 || Number(m[2]) > 59) return t
-  const min = m[2]
-  const period = h24 >= 12 ? 'PM' : 'AM'
-  let h12 = h24 % 12
-  if (h12 === 0) h12 = 12
-  return `${h12}:${min} ${period}`
-}
-
-function monthTitleLine(monthKey: string): string {
-  if (monthKey === '_unknown') return 'For ____________________'
-  const [y, mo] = monthKey.split('-').map(Number)
-  if (!y || !mo) return 'For ____________________'
-  const d = new Date(y, mo - 1, 1)
-  const monthName = d.toLocaleString(undefined, { month: 'long' })
-  return `For ${monthName} ${y}`
-}
-
-function sortChronological(entries: LogEntry[]): LogEntry[] {
-  return [...entries].sort((a, b) => {
-    const c = a.entryDate.trim().localeCompare(b.entryDate.trim())
-    if (c !== 0) return c
-    const ta = a.values['time'] ?? ''
-    const tb = b.values['time'] ?? ''
-    return ta.localeCompare(tb)
-  })
-}
-
-function cellForField(entry: LogEntry, field: FieldDef): string {
-  if (field.key === 'date' && entry.entryDate.trim()) return formatShortDate(entry.entryDate)
-  const raw = entry.values[field.key]
-  if (raw === undefined || raw === '') return ''
-  if (field.type === 'time') return formatTimeAmPm(raw)
-  return raw
-}
-
-function fieldByKey(fields: FieldDef[], key: string): FieldDef {
-  return fields.find((f) => f.key === key) ?? { key, label: key, type: 'text' }
-}
 
 function isLiftStationLayout(fields: FieldDef[]): boolean {
   return fields.some((f) => f.key === 'pump1MeterRead')
@@ -97,45 +44,79 @@ function drawLiftStationPdf(doc: jsPDF, location: LocationDef, monthKey: string,
   y += 28
 
   const sorted = sortChronological(entries)
-  const head = [
-    [
-      'Date',
-      'Time',
-      'Pump #1 Meter Reading',
-      'HRS',
-      'Pump #2 Meter Reading',
-      'HRS',
-      'Pump # On/off',
-      'Comments / Sign',
-    ],
-  ]
-
+  const hasFlow = location.fields.some((f) => f.key === 'flowMeterRead')
   const f = (key: string) => fieldByKey(location.fields, key)
-  const body: string[][] = sorted.map((e) => [
-    cellForField(e, f('date')),
-    cellForField(e, f('time')),
-    cellForField(e, f('pump1MeterRead')),
-    cellForField(e, f('pump1Hours')),
-    cellForField(e, f('pump2MeterRead')),
-    cellForField(e, f('pump2Hours')),
-    cellForField(e, f('pumpOnOff')),
-    cellForField(e, f('comments')),
-  ])
 
+  const head = hasFlow
+    ? [
+        [
+          'Date',
+          'Time',
+          'Pump #1 Meter Reading',
+          'HRS',
+          'Pump #2 Meter Reading',
+          'HRS',
+          'Pump # On/off',
+          'Flow Meter Reading',
+          'Comments / Sign',
+        ],
+      ]
+    : [
+        [
+          'Date',
+          'Time',
+          'Pump #1 Meter Reading',
+          'HRS',
+          'Pump #2 Meter Reading',
+          'HRS',
+          'Pump # On/off',
+          'Comments / Sign',
+        ],
+      ]
+
+  const body: string[][] = sorted.map((e) => {
+    const row = [
+      cellForField(e, f('date')),
+      cellForField(e, f('time')),
+      cellForField(e, f('pump1MeterRead')),
+      cellForField(e, f('pump1Hours')),
+      cellForField(e, f('pump2MeterRead')),
+      cellForField(e, f('pump2Hours')),
+      cellForField(e, f('pumpOnOff')),
+    ]
+    if (hasFlow) {
+      row.push(cellForField(e, f('flowMeterRead')), cellForField(e, f('comments')))
+    } else {
+      row.push(cellForField(e, f('comments')))
+    }
+    return row
+  })
+
+  const colCount = hasFlow ? 9 : 8
   while (body.length < MIN_LIFT_ROWS) {
-    body.push(['', '', '', '', '', '', '', ''])
+    body.push(Array(colCount).fill('') as string[])
   }
 
   const innerW = pageW - MARGIN * 2
-  /** Fixed width for comments (~24% of page); remaining width split across the other seven columns. */
   const commentColW = 168
   const restW = innerW - commentColW
-  const weight7 = [12, 11, 16, 9, 16, 9, 11]
-  const weightSum = weight7.reduce((a, b) => a + b, 0)
-  const w = [
-    ...weight7.map((wt) => (restW * wt) / weightSum),
-    commentColW,
-  ]
+  const weights = hasFlow
+    ? [12, 11, 14, 8, 14, 8, 10, 12]
+    : [12, 11, 16, 9, 16, 9, 11]
+  const weightSum = weights.reduce((a, b) => a + b, 0)
+  const w = [...weights.map((wt) => (restW * wt) / weightSum), commentColW]
+
+  const columnStyles: Record<number, { cellWidth: number; halign: 'center' | 'left'; valign: 'top'; overflow?: 'linebreak' }> =
+    {}
+  for (let i = 0; i < w.length; i++) {
+    const isComment = i === w.length - 1
+    columnStyles[i] = {
+      cellWidth: w[i],
+      halign: isComment ? 'left' : 'center',
+      valign: 'top',
+      ...(isComment ? { overflow: 'linebreak' as const } : {}),
+    }
+  }
 
   autoTable(doc, {
     startY: y,
@@ -162,21 +143,7 @@ function drawLiftStationPdf(doc: jsPDF, location: LocationDef, monthKey: string,
     bodyStyles: {
       valign: 'top',
     },
-    columnStyles: {
-      0: { cellWidth: w[0], halign: 'center', valign: 'top' },
-      1: { cellWidth: w[1], halign: 'center', valign: 'top' },
-      2: { cellWidth: w[2], halign: 'center', valign: 'top' },
-      3: { cellWidth: w[3], halign: 'center', valign: 'top' },
-      4: { cellWidth: w[4], halign: 'center', valign: 'top' },
-      5: { cellWidth: w[5], halign: 'center', valign: 'top' },
-      6: { cellWidth: w[6], halign: 'center', valign: 'top' },
-      7: {
-        cellWidth: w[7],
-        halign: 'left',
-        valign: 'top',
-        overflow: 'linebreak',
-      },
-    },
+    columnStyles,
     margin: { left: MARGIN, right: MARGIN },
     showHead: 'everyPage',
   })

@@ -1,6 +1,8 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
+  doc,
   onSnapshot,
   orderBy,
   query,
@@ -57,4 +59,8 @@ export async function saveEntry(input: {
     values: input.values,
     submittedAt: serverTimestamp(),
   })
+}
+
+export async function deleteEntry(entryId: string): Promise<void> {
+  await deleteDoc(doc(db, COLLECTION, entryId))
 }
