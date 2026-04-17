@@ -84,7 +84,7 @@ export function AdminSettingsPage() {
           Adds one entry per day for January, February, and March 2026 for{' '}
           <strong>every</strong> location (full three-month span), plus weekly treatment report
           entries for those months (Cain Well #4 on 1st and 4th week rows, Twin Well #2 on 2nd and
-          3rd; FE Inches daily). Comment-style fields are filled with the text{' '}
+          3rd; FE Inches daily at Twin Well #2 only). Comment-style fields are filled with the text{' '}
           <strong>test comment</strong>. Existing data is not removed.
         </p>
         {error ? (

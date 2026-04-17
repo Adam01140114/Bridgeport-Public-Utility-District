@@ -1,35 +1,58 @@
 import * as XLSX from 'xlsx'
 import { formatMonthTitle } from '../data/treatmentReport'
 import {
-  TREATMENT_REPORT_HEADER_LOCATIONS,
-  buildTreatmentReportTableBody,
+  buildFeTreatmentReportBody,
+  buildFeTreatmentReportHeaderRow,
+  buildWeeklyTreatmentReportBody,
+  buildWeeklyTreatmentReportHeaderRow,
 } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
+const TITLE = 'Bridgeport Public Utility District - Monthly Treatment Report'
+
 export function downloadTreatmentReportXlsx(monthKey: string, entries: TreatmentReportEntry[]): void {
-  const title = 'Bridgeport Public Utility District - Monthly Treatment Report'
   const sub = `Month Of: ${formatMonthTitle(monthKey)}`
-  const headerRow = ['Category', 'DATE', ...TREATMENT_REPORT_HEADER_LOCATIONS]
+  const weeklyHeader = buildWeeklyTreatmentReportHeaderRow()
+  const weeklyBody = buildWeeklyTreatmentReportBody(monthKey, entries)
 
-  const body = buildTreatmentReportTableBody(monthKey, entries)
-
-  const rows: (string | number)[][] = [
-    [title],
+  const weeklyRows: (string | number)[][] = [
+    [TITLE],
     [sub],
     [],
-    headerRow,
-    ...body,
+    weeklyHeader,
+    ...weeklyBody,
   ]
 
-  const ws = XLSX.utils.aoa_to_sheet(rows)
-  const colCount = headerRow.length
-  const lastCol = colCount - 1
-  ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+  const feHeader = buildFeTreatmentReportHeaderRow()
+  const feBody = buildFeTreatmentReportBody(monthKey, entries)
+
+  const feRows: (string | number)[][] = [
+    [TITLE],
+    [sub],
+    [],
+    ['Twin Lakes Well I Arsenic Plant — FE tank (daily)'],
+    [],
+    feHeader,
+    ...feBody,
+  ]
+
+  const wsWeekly = XLSX.utils.aoa_to_sheet(weeklyRows)
+  const wLast = weeklyHeader.length - 1
+  wsWeekly['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: wLast } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: wLast } },
+  ]
+
+  const wsFe = XLSX.utils.aoa_to_sheet(feRows)
+  const fLast = feHeader.length - 1
+  wsFe['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: fLast } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: fLast } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: fLast } },
   ]
 
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Treatment Report')
+  XLSX.utils.book_append_sheet(wb, wsWeekly, 'Weekly FTK')
+  XLSX.utils.book_append_sheet(wb, wsFe, 'FE Inches')
   XLSX.writeFile(wb, `BPUD-Treatment-Report-${monthKey}.xlsx`)
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  TREATMENT_CATEGORIES,
+  TREATMENT_CATEGORIES_MANUAL_REPORT,
   daysInMonthFromKey,
   formatMonthTitle,
   isDailyTreatmentCategory,
@@ -124,20 +124,26 @@ export function TreatmentReportPage() {
     return () => unsub()
   }, [activeMonthKey])
 
+  /** FE Inches is only sourced from Twin Lakes logs; hide it from this page’s calendar and lists. */
+  const entriesForUi = useMemo(
+    () => entries.filter((e) => e.category !== 'FE Inches'),
+    [entries]
+  )
+
   const daysWithData = useMemo(() => {
     const s = new Set<number>()
     if (!activeMonthKey) return s
-    for (const e of entries) {
+    for (const e of entriesForUi) {
       if (!isDateInMonthKey(e.entryDate, activeMonthKey)) continue
       const m = e.entryDate.match(/-(\d{2})$/)
       if (m) s.add(Number(m[1]))
     }
     return s
-  }, [entries, activeMonthKey])
+  }, [entriesForUi, activeMonthKey])
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, TreatmentReportEntry[]>()
-    for (const entry of entries) {
+    for (const entry of entriesForUi) {
       const list = map.get(entry.entryDate)
       if (list) list.push(entry)
       else map.set(entry.entryDate, [entry])
@@ -146,7 +152,7 @@ export function TreatmentReportPage() {
       list.sort((a, b) => a.category.localeCompare(b.category) || a.location.localeCompare(b.location))
     }
     return map
-  }, [entries])
+  }, [entriesForUi])
 
   const locationOptions = useMemo(() => {
     if (!formCategory) return [] as TreatmentLocation[]
@@ -261,8 +267,9 @@ export function TreatmentReportPage() {
             Monthly Treatment Report
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-sky-100/85 sm:text-sm">
-            Weekly FTK readings by category and sample location; FE Inches is logged by calendar
-            day. Pick a month to view or add entries, then export a district-style PDF or Excel file.
+            Weekly FTK readings by category and sample location. FE Inches on exports comes from the
+            Twin Lakes Well I Arsenic Plant daily log (FE tank), not from this screen. Pick a month to
+            view or add entries, then export a district-style PDF or Excel file.
           </p>
         </div>
       </div>
@@ -356,7 +363,7 @@ export function TreatmentReportPage() {
                   {formatMonthTitle(activeMonthKey)}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  {entries.length} reading{entries.length === 1 ? '' : 's'} this month
+                  {entriesForUi.length} reading{entriesForUi.length === 1 ? '' : 's'} this month
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0">
@@ -423,12 +430,12 @@ export function TreatmentReportPage() {
             ) : null}
 
             <ul className="mt-8 space-y-3">
-              {entries.length === 0 ? (
+              {entriesForUi.length === 0 ? (
                 <li className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 py-10 text-center text-sm text-slate-500">
                   No readings yet. Use <strong>Add entry</strong> to record a value.
                 </li>
               ) : (
-                entries.map((e) => (
+                entriesForUi.map((e) => (
                   <li
                     key={e.id}
                     className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 ring-1 ring-slate-100 sm:flex-row sm:items-center sm:justify-between"
@@ -508,7 +515,7 @@ export function TreatmentReportPage() {
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base shadow-sm outline-none focus:border-sky-500 sm:text-sm"
                 >
                   <option value="">Select category…</option>
-                  {TREATMENT_CATEGORIES.map((c) => (
+                  {TREATMENT_CATEGORIES_MANUAL_REPORT.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -649,8 +656,8 @@ export function TreatmentReportPage() {
               Export {formatMonthTitle(activeMonthKey)}
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              Download a monthly treatment grid as PDF or Excel (matches the district worksheet
-              layout).
+              PDF: weekly FTK table, then a separate Twin Lakes FE table. Excel: two sheets —{' '}
+              <strong>Weekly FTK</strong> and <strong>FE Inches</strong>.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button

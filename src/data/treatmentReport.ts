@@ -9,6 +9,11 @@ export const TREATMENT_CATEGORIES = [
 
 export type TreatmentCategory = (typeof TREATMENT_CATEGORIES)[number]
 
+/** Categories operators can pick on the Monthly Treatment Report “Add entry” form. FE Inches is only recorded via Twin Lakes daily logs. */
+export const TREATMENT_CATEGORIES_MANUAL_REPORT = TREATMENT_CATEGORIES.filter(
+  (c): c is Exclude<TreatmentCategory, 'FE Inches'> => c !== 'FE Inches'
+)
+
 /** Weekly FTK rows use a 7-day bucket; FE Inches uses the exact entry date for conflicts. */
 export function isDailyTreatmentCategory(category: TreatmentCategory): boolean {
   return category === 'FE Inches'

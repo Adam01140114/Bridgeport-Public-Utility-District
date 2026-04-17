@@ -6,7 +6,7 @@ import {
 } from '../data/treatmentReport'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
-/** Column order for PDF / Excel treatment report grids. */
+/** Column order for weekly FTK grid (PDF/Excel sheet 1). */
 export const TREATMENT_REPORT_HEADER_LOCATIONS = [
   'Cain Well #4',
   'Twin Well #2',
@@ -16,7 +16,21 @@ export const TREATMENT_REPORT_HEADER_LOCATIONS = [
   'Vessel #3 Eff.',
 ] as const
 
-export const TREATMENT_REPORT_COLUMN_COUNT = 2 + TREATMENT_REPORT_HEADER_LOCATIONS.length
+/** FE tank readings from Twin Lakes Well I Arsenic Plant map to this treatment location in-app. */
+export const FE_INCHES_EXPORT_LOCATION = 'Twin Well #2' as const
+
+const WEEKLY_EXPORT_CATEGORIES = TREATMENT_CATEGORIES.filter((c) => c !== 'FE Inches')
+
+export function buildWeeklyTreatmentReportHeaderRow(): string[] {
+  return ['Category', 'DATE', ...TREATMENT_REPORT_HEADER_LOCATIONS]
+}
+
+export const WEEKLY_TREATMENT_REPORT_COLUMN_COUNT = buildWeeklyTreatmentReportHeaderRow().length
+
+/** Second table / sheet: Twin Lakes daily FE only. */
+export function buildFeTreatmentReportHeaderRow(): string[] {
+  return ['FE date', 'FE Inches']
+}
 
 export function formatTreatmentReportShortMdy(iso: string): string {
   const m = iso.trim().match(/^(\d{4})-(\d{2})-(\d{2})/)
@@ -39,59 +53,63 @@ function weeklyCellValue(
   return hit?.value?.trim() ?? ''
 }
 
-function feInchesDayCellValue(
+function feInchesForCalendarDay(
   entries: TreatmentReportEntry[],
-  entryDate: string,
-  location: string
-): string {
+  entryDate: string
+): { dateDisplay: string; value: string } {
   const hit = entries.find(
     (e) =>
-      e.category === 'FE Inches' && e.location === location && e.entryDate === entryDate
+      e.category === 'FE Inches' &&
+      e.location === FE_INCHES_EXPORT_LOCATION &&
+      e.entryDate === entryDate
   )
-  return hit?.value?.trim() ?? ''
+  return {
+    dateDisplay: formatTreatmentReportShortMdy(entryDate),
+    value: hit?.value?.trim() ?? '',
+  }
 }
 
-/** Body rows for the monthly grid: weekly categories × 4 week rows; FE Inches × one row per calendar day; blank row between categories. */
-export function buildTreatmentReportTableBody(
+/** Weekly FTK only; blank rows between categories. */
+export function buildWeeklyTreatmentReportBody(
   monthKey: string,
   entries: TreatmentReportEntry[]
 ): string[][] {
   const body: string[][] = []
 
-  TREATMENT_CATEGORIES.forEach((category, index) => {
+  WEEKLY_EXPORT_CATEGORIES.forEach((category, index) => {
     const showVessels = vesselColumnsForCategory(category)
 
-    if (category === 'FE Inches') {
-      const dim = daysInMonthFromKey(monthKey)
-      for (let day = 1; day <= dim; day++) {
-        const entryDate = `${monthKey}-${String(day).padStart(2, '0')}`
-        body.push([
-          category,
-          formatTreatmentReportShortMdy(entryDate),
-          ...TREATMENT_REPORT_HEADER_LOCATIONS.map((loc) => {
-            if (!showVessels && loc.startsWith('Vessel')) return ''
-            return feInchesDayCellValue(entries, entryDate, loc)
-          }),
-        ])
-      }
-    } else {
-      for (let slot = 0; slot < 4; slot++) {
-        const rowDate = weekRowDate(monthKey, slot)
-        body.push([
-          category,
-          formatTreatmentReportShortMdy(rowDate),
-          ...TREATMENT_REPORT_HEADER_LOCATIONS.map((loc) => {
-            if (!showVessels && loc.startsWith('Vessel')) return ''
-            return weeklyCellValue(entries, category, loc, slot)
-          }),
-        ])
-      }
+    for (let slot = 0; slot < 4; slot++) {
+      const rowDate = weekRowDate(monthKey, slot)
+      body.push([
+        category,
+        formatTreatmentReportShortMdy(rowDate),
+        ...TREATMENT_REPORT_HEADER_LOCATIONS.map((loc) => {
+          if (!showVessels && loc.startsWith('Vessel')) return ''
+          return weeklyCellValue(entries, category, loc, slot)
+        }),
+      ])
     }
 
-    if (index < TREATMENT_CATEGORIES.length - 1) {
-      body.push(Array.from({ length: TREATMENT_REPORT_COLUMN_COUNT }, () => ''))
+    if (index < WEEKLY_EXPORT_CATEGORIES.length - 1) {
+      body.push(Array.from({ length: WEEKLY_TREATMENT_REPORT_COLUMN_COUNT }, () => ''))
     }
   })
 
   return body
+}
+
+/** One row per calendar day; Twin Lakes FE tank via treatment entries. */
+export function buildFeTreatmentReportBody(
+  monthKey: string,
+  entries: TreatmentReportEntry[]
+): string[][] {
+  const dim = daysInMonthFromKey(monthKey)
+  const rows: string[][] = []
+  for (let day = 1; day <= dim; day++) {
+    const entryDate = `${monthKey}-${String(day).padStart(2, '0')}`
+    const fe = feInchesForCalendarDay(entries, entryDate)
+    rows.push([fe.dateDisplay, fe.value])
+  }
+  return rows
 }

@@ -2,8 +2,10 @@ import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { formatMonthTitle } from '../data/treatmentReport'
 import {
-  TREATMENT_REPORT_HEADER_LOCATIONS,
-  buildTreatmentReportTableBody,
+  buildFeTreatmentReportBody,
+  buildFeTreatmentReportHeaderRow,
+  buildWeeklyTreatmentReportBody,
+  buildWeeklyTreatmentReportHeaderRow,
 } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
@@ -21,6 +23,7 @@ function openPdfBlob(doc: jsPDF): void {
 export function openTreatmentReportPdf(monthKey: string, entries: TreatmentReportEntry[]): void {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' })
   const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
   let y = MARGIN
 
   doc.setFont('helvetica', 'bold')
@@ -31,27 +34,27 @@ export function openTreatmentReportPdf(monthKey: string, entries: TreatmentRepor
   doc.text(`Month Of: ${formatMonthTitle(monthKey)}`, pageW / 2, y, { align: 'center' })
   y += 28
 
-  const head = [['Category', 'DATE', ...TREATMENT_REPORT_HEADER_LOCATIONS]]
-  const body = buildTreatmentReportTableBody(monthKey, entries)
+  const weeklyHead = [buildWeeklyTreatmentReportHeaderRow()]
+  const weeklyBody = buildWeeklyTreatmentReportBody(monthKey, entries)
 
   const innerW = pageW - MARGIN * 2
-  const catW = 108
-  const dateW = 64
+  const catW = 100
+  const dateW = 56
   const rest = innerW - catW - dateW
   const locW = rest / 6
 
   autoTable(doc, {
     startY: y,
-    head,
-    body,
+    head: weeklyHead,
+    body: weeklyBody,
     theme: 'grid',
     tableLineColor: [0, 0, 0],
     tableLineWidth: 0.35,
     tableWidth: innerW,
     styles: {
       font: 'helvetica',
-      fontSize: 7.5,
-      cellPadding: 3,
+      fontSize: 7,
+      cellPadding: 2.5,
       valign: 'middle',
       halign: 'center',
       overflow: 'linebreak',
@@ -76,15 +79,64 @@ export function openTreatmentReportPdf(monthKey: string, entries: TreatmentRepor
     margin: { left: MARGIN, right: MARGIN },
     showHead: 'everyPage',
     didParseCell: (data) => {
-      if (data.section !== 'body' || data.row.index === undefined) return
-      const row = body[data.row.index]
-      if (row && row.every((c) => c === '')) {
-        data.cell.styles.fillColor = [255, 255, 255]
-        data.cell.styles.minCellHeight = 6
-        data.cell.styles.cellPadding = { top: 2, bottom: 2, left: 3, right: 3 }
-        data.cell.styles.fontStyle = 'normal'
+      if (data.section === 'body' && data.row.index !== undefined) {
+        const row = weeklyBody[data.row.index]
+        if (row && row.every((c) => c === '')) {
+          data.cell.styles.fillColor = [255, 255, 255]
+          data.cell.styles.textColor = [0, 0, 0]
+          data.cell.styles.minCellHeight = 6
+          data.cell.styles.cellPadding = { top: 2, bottom: 2, left: 3, right: 3 }
+          data.cell.styles.fontStyle = 'normal'
+        }
       }
     },
+  })
+
+  const last = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable
+  let nextY = (last?.finalY ?? y) + 28
+  if (nextY > pageH - 120) {
+    doc.addPage('l')
+    nextY = MARGIN
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('Twin Lakes Well I Arsenic Plant — FE tank (daily)', MARGIN, nextY)
+  nextY += 18
+
+  const feHead = [buildFeTreatmentReportHeaderRow()]
+  const feBody = buildFeTreatmentReportBody(monthKey, entries)
+  const feTableW = 280
+
+  autoTable(doc, {
+    startY: nextY,
+    head: feHead,
+    body: feBody,
+    theme: 'grid',
+    tableLineColor: [0, 0, 0],
+    tableLineWidth: 0.35,
+    tableWidth: feTableW,
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 3,
+      valign: 'middle',
+      halign: 'center',
+    },
+    headStyles: {
+      fillColor: [255, 245, 180],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      fillColor: [255, 252, 220],
+    },
+    columnStyles: {
+      0: { cellWidth: feTableW * 0.42 },
+      1: { cellWidth: feTableW * 0.58 },
+    },
+    margin: { left: MARGIN, right: MARGIN },
+    showHead: 'everyPage',
   })
 
   openPdfBlob(doc)

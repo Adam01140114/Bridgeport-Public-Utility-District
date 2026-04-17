@@ -2,6 +2,7 @@ import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore
 import { db } from '../firebase/config'
 import type { FieldDef, LocationDef } from '../data/locations'
 import { LOCATIONS } from '../data/locations'
+import { FE_INCHES_EXPORT_LOCATION } from '../export/treatmentReportGrid'
 import {
   TREATMENT_CATEGORIES,
   daysInMonthFromKey,
@@ -130,23 +131,22 @@ export async function injectTestDataForAllLocations(): Promise<InjectTestDataRes
       const locs = locationsForCategory(category)
       if (category === 'FE Inches') {
         const dim = daysInMonthFromKey(monthKey)
+        const location = FE_INCHES_EXPORT_LOCATION
         for (let day = 1; day <= dim; day++) {
           const entryDate = `${monthKey}-${String(day).padStart(2, '0')}`
-          for (const location of locs) {
-            const seed =
-              monthKey.split('-').reduce((a, x) => a + Number(x), 0) +
-              category.length * 13 +
-              location.length * 7 +
-              day * 19
-            treatmentRows.push({
-              monthKey,
-              entryDate,
-              weekSlot: weekSlotFromDateInMonth(entryDate, monthKey),
-              category,
-              location,
-              value: (0.02 + (seed % 75) / 100).toFixed(2),
-            })
-          }
+          const seed =
+            monthKey.split('-').reduce((a, x) => a + Number(x), 0) +
+            category.length * 13 +
+            location.length * 7 +
+            day * 19
+          treatmentRows.push({
+            monthKey,
+            entryDate,
+            weekSlot: weekSlotFromDateInMonth(entryDate, monthKey),
+            category,
+            location,
+            value: (0.02 + (seed % 75) / 100).toFixed(2),
+          })
         }
       } else {
         for (let slot = 0; slot < 4; slot++) {
