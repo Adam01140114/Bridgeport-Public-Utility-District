@@ -288,7 +288,7 @@ export function TreatmentReportPage() {
         <section className="overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-white/[0.06] to-sky-400/10 p-6 shadow-2xl shadow-black/20 ring-1 ring-white/30 backdrop-blur-md sm:p-10">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between sm:gap-8">
             <p className="text-center text-sm font-medium uppercase tracking-[0.25em] text-sky-200/80 sm:text-left">
-              Select year
+              Select date
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-[#071a2e]/40 px-2 py-2 ring-1 ring-white/10">
               <button
