@@ -1,46 +1,45 @@
 import { Link } from 'react-router-dom'
+import headerLogo from '../../header_logo.png'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen min-h-[100dvh] flex-col">
       <header className="shrink-0 border-b border-white/10 bg-[#071a2e]/80 pt-[env(safe-area-inset-top,0)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-3 px-4 py-3 sm:justify-between sm:px-6 sm:py-4">
           <Link
             to="/"
-            className="group flex min-h-[48px] min-w-0 flex-1 items-center gap-3 text-white no-underline sm:min-h-0 sm:flex-none"
+            aria-label="Bridgeport Public Utility District"
+            className="group flex min-h-[48px] w-full items-center justify-center text-white no-underline sm:min-h-0 sm:w-auto sm:flex-none sm:justify-start"
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-400/20 ring-1 ring-sky-300/40 sm:h-10 sm:w-10">
-              <svg
-                className="h-6 w-6 text-sky-200"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                aria-hidden
-              >
-                <path d="M12 2.5c-2.5 3.5-4 6.2-4 9a4 4 0 108 0c0-2.8-1.5-5.5-4-9z" />
-                <path d="M8 18h8M9 22h6" strokeLinecap="round" />
-              </svg>
-            </span>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-200/90">
-                Bridgeport PUD
-              </p>
-              <p className="text-sm font-semibold leading-tight text-white group-hover:text-sky-100">
-                Field data log
-              </p>
-            </div>
+            <img
+              src={headerLogo}
+              alt=""
+              aria-hidden
+              className="h-16 w-auto shrink-0 rounded-lg border border-sky-200/60 bg-white p-1.5 shadow-lg shadow-black/20 ring-2 ring-white/65 transition group-hover:border-sky-100 group-hover:ring-white/90 sm:h-20"
+            />
           </Link>
           <nav className="flex w-full max-w-full flex-wrap items-stretch justify-end gap-2 text-sky-100/90 sm:max-w-none sm:w-auto sm:items-center sm:gap-3 sm:text-xs">
+            <Link
+              to="/treatment-report"
+              className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl px-4 text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs"
+            >
+              Treatment report
+            </Link>
             <Link
               to="/records"
               className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl px-4 text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs"
             >
               All records
             </Link>
+            <Link
+              to="/admin/settings"
+              className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl px-4 text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs"
+            >
+              Settings
+            </Link>
             <span className="hidden self-center text-sky-100/40 sm:inline">|</span>
             <span className="hidden self-center text-sky-100/70 sm:inline">
-              Paperless rounds by site &amp; date
+              Bridgeport Public Utility District Field Log
             </span>
           </nav>
         </div>

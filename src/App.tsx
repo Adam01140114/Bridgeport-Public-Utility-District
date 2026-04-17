@@ -4,6 +4,7 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage'
 import { AllRecordsPage } from './pages/AllRecordsPage'
 import { HomePage } from './pages/HomePage'
 import { LocationLogPage } from './pages/LocationLogPage'
+import { TreatmentReportPage } from './pages/TreatmentReportPage'
 
 export default function App() {
   const base = import.meta.env.BASE_URL
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/records" element={<AllRecordsPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/location/:locationId" element={<LocationLogPage />} />
+          <Route path="/treatment-report" element={<TreatmentReportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>

@@ -7,6 +7,7 @@ export interface FieldDef {
   options?: string[]
   placeholder?: string
   gridClass?: string
+  cadence?: 'daily' | 'weekly'
 }
 
 export interface LocationDef {
@@ -78,96 +79,174 @@ const artWebbLiftStationFields: FieldDef[] = [
 ]
 
 const twinLakesFields: FieldDef[] = [
-  { key: 'date', label: 'Date', type: 'date', gridClass: 'sm:col-span-1' },
-  { key: 'time', label: 'Time', type: 'time', gridClass: 'sm:col-span-1' },
+  { key: 'date', label: 'Date', type: 'date', gridClass: 'sm:col-span-1', cadence: 'daily' },
+  { key: 'time', label: 'Time', type: 'time', gridClass: 'sm:col-span-1', cadence: 'daily' },
   {
     key: 'meterReading',
     label: 'Meter reading',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'flowMgd',
     label: 'Flow MGD',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'wellPsi',
     label: 'Well PSI',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'cl2Tank',
     label: 'CL2 tank',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'feTank',
     label: 'FE tank',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'cl2Free',
     label: 'CL2 free',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'dpNumber',
     label: 'D.P #',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'nextBackwashGallon',
     label: 'Next backwash gallon',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'outletPsi',
     label: 'Outlet PSI',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
+  },
+  {
+    key: 'weeklyArsenicFtk',
+    label: 'Arsenic (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
+  },
+  {
+    key: 'weeklyIronFtk',
+    label: 'Iron (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
+  },
+  {
+    key: 'weeklyPhFtk',
+    label: 'PH (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
+  },
+  {
+    key: 'weeklyCl2ResFtk',
+    label: 'CL2 - Res. (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
   },
 ]
 
 const cainWellFields: FieldDef[] = [
-  { key: 'date', label: 'Date', type: 'date', gridClass: 'sm:col-span-1' },
-  { key: 'time', label: 'Time', type: 'time', gridClass: 'sm:col-span-1' },
+  { key: 'date', label: 'Date', type: 'date', gridClass: 'sm:col-span-1', cadence: 'daily' },
+  { key: 'time', label: 'Time', type: 'time', gridClass: 'sm:col-span-1', cadence: 'daily' },
   {
     key: 'meterReading',
     label: 'Meter reading',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'flowMgd',
     label: 'Flow MGD',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'chlorine',
     label: 'Chlorine',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
   },
   {
     key: 'pressure',
     label: 'Pressure',
     type: 'text',
     gridClass: 'sm:col-span-1',
+    cadence: 'daily',
+  },
+  {
+    key: 'weeklyArsenicFtk',
+    label: 'Arsenic (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
+  },
+  {
+    key: 'weeklyIronFtk',
+    label: 'Iron (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
+  },
+  {
+    key: 'weeklyPhFtk',
+    label: 'PH (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
+  },
+  {
+    key: 'weeklyCl2ResFtk',
+    label: 'CL2 - Res. (FTK)',
+    type: 'text',
+    placeholder: 'Weekly',
+    gridClass: 'sm:col-span-1',
+    cadence: 'weekly',
   },
   {
     key: 'comments',
     label: 'Comments',
     type: 'textarea',
     gridClass: 'sm:col-span-2',
+    cadence: 'daily',
   },
 ]
 

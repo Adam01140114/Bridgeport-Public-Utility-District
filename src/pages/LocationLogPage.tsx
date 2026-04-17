@@ -2,10 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { FieldDef } from '../data/locations'
 import { getLocationById } from '../data/locations'
+import type { TreatmentCategory, TreatmentLocation } from '../data/treatmentReport'
+import { isDailyTreatmentCategory, weekSlotFromDateInMonth } from '../data/treatmentReport'
 import { downloadMonthlyLogXlsx } from '../excel/monthlyLogXlsx'
 import { openMonthlyLogPdf } from '../pdf/monthlyLogPdf'
 import { deleteEntry, saveEntry, subscribeEntriesForLocation } from '../services/entries'
+import {
+  deleteTreatmentEntry,
+  findTreatmentEntryConflict,
+  findTreatmentEntryConflictDaily,
+  saveTreatmentEntry,
+} from '../services/treatmentEntries'
 import type { LogEntry } from '../types/entry'
+import { backNavOnDarkClass, backNavOnLightClass } from '../ui/backNav'
+import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
 function emptyStateForFields(fields: FieldDef[]): Record<string, string> {
   return Object.fromEntries(fields.map((f) => [f.key, '']))
@@ -131,6 +141,42 @@ function formatMonthHeading(ymKey: string): string {
   })
 }
 
+type WeeklySourceConfig = {
+  locationId: string
+  treatmentLocation: TreatmentLocation
+  fields: Array<{ key: string; category: TreatmentCategory }>
+  /** Twin Lakes: map daily “FE tank” into Monthly Treatment Report row “FE Inches”. */
+  feTankTreatment?: {
+    key: 'feTank'
+    category: 'FE Inches'
+    location: TreatmentLocation
+  }
+}
+
+const WEEKLY_SOURCE_CONFIG: WeeklySourceConfig[] = [
+  {
+    locationId: 'cain-well-daily-log',
+    treatmentLocation: 'Cain Well #4',
+    fields: [
+      { key: 'weeklyArsenicFtk', category: 'Arsenic (FTK)' },
+      { key: 'weeklyIronFtk', category: 'Iron (FTK)' },
+      { key: 'weeklyPhFtk', category: 'PH (FTK)' },
+      { key: 'weeklyCl2ResFtk', category: 'CL2 - Res. (FTK)' },
+    ],
+  },
+  {
+    locationId: 'twin-lakes-well-i-arsenic-plant',
+    treatmentLocation: 'Twin Well #2',
+    fields: [
+      { key: 'weeklyArsenicFtk', category: 'Arsenic (FTK)' },
+      { key: 'weeklyIronFtk', category: 'Iron (FTK)' },
+      { key: 'weeklyPhFtk', category: 'PH (FTK)' },
+      { key: 'weeklyCl2ResFtk', category: 'CL2 - Res. (FTK)' },
+    ],
+    feTankTreatment: { key: 'feTank', category: 'FE Inches', location: 'Twin Well #2' },
+  },
+]
+
 function compareEntryDateDesc(a: LogEntry, b: LogEntry): number {
   const da = a.entryDate.trim()
   const db = b.entryDate.trim()
@@ -175,7 +221,10 @@ function SavedEntryCard({
           const display = v !== undefined && v !== '' ? v : '—'
           return (
             <div key={f.key} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-              <dt className="shrink-0 text-slate-500 sm:max-w-[40%]">{f.label}</dt>
+              <dt className="shrink-0 text-slate-500 sm:max-w-[40%]">
+                {f.label}
+                {f.cadence === 'weekly' ? ' (Weekly)' : ''}
+              </dt>
               <dd className="font-medium break-words text-slate-800 sm:flex-1">{display}</dd>
             </div>
           )
@@ -223,6 +272,14 @@ export function LocationLogPage() {
   }, [entriesByMonth])
 
   const entriesForOpenMonth = openMonthKey ? (entriesByMonth.get(openMonthKey) ?? []) : []
+  const dailyFields = useMemo(
+    () => location?.fields.filter((f) => f.cadence !== 'weekly') ?? [],
+    [location]
+  )
+  const weeklyFields = useMemo(
+    () => location?.fields.filter((f) => f.cadence === 'weekly') ?? [],
+    [location]
+  )
 
   useEffect(() => {
     if (!location) return
@@ -289,12 +346,91 @@ export function LocationLogPage() {
     setSaveMessage(null)
     setFirestoreError(null)
     try {
+      const monthKey = monthKeyFromEntryDate(entryDate.trim())
+      const weeklyConfig = WEEKLY_SOURCE_CONFIG.find((c) => c.locationId === location.id)
+      const pendingWeekly: Array<{
+        category: TreatmentCategory
+        location: TreatmentLocation
+        value: string
+      }> = []
+      if (weeklyConfig) {
+        for (const wf of weeklyConfig.fields) {
+          const value = (values[wf.key] ?? '').trim()
+          if (value !== '') {
+            pendingWeekly.push({
+              category: wf.category,
+              location: weeklyConfig.treatmentLocation,
+              value,
+            })
+          }
+        }
+        const ft = weeklyConfig.feTankTreatment
+        if (ft) {
+          const value = (values[ft.key] ?? '').trim()
+          if (value !== '') {
+            pendingWeekly.push({
+              category: ft.category,
+              location: ft.location,
+              value,
+            })
+          }
+        }
+      }
+
+      const weeklyConflicts: TreatmentReportEntry[] = []
+      for (const weekly of pendingWeekly) {
+        const conflict = isDailyTreatmentCategory(weekly.category)
+          ? await findTreatmentEntryConflictDaily({
+              monthKey,
+              entryDate: entryDate.trim(),
+              category: weekly.category,
+              location: weekly.location,
+            })
+          : await findTreatmentEntryConflict({
+              monthKey,
+              weekSlot: weekSlotFromDateInMonth(entryDate.trim(), monthKey),
+              category: weekly.category,
+              location: weekly.location,
+            })
+        if (conflict) weeklyConflicts.push(conflict)
+      }
+
+      for (const conflict of weeklyConflicts) {
+        const daily = isDailyTreatmentCategory(conflict.category)
+        const ok = window.confirm(
+          daily
+            ? `You already have a ${conflict.category} reading at ${conflict.location} on this date ` +
+                `(${conflict.entryDate}). Replace it?`
+            : `You already have a weekly ${conflict.category} reading at ${conflict.location} for this ` +
+                `month's week slot (logged on ${conflict.entryDate}). Replace it?`
+        )
+        if (!ok) {
+          setSaving(false)
+          return
+        }
+      }
+
       await saveEntry({
         locationId: location.id,
         locationName: location.name,
         entryDate: entryDate.trim(),
         values: { ...values },
       })
+
+      for (const conflict of weeklyConflicts) {
+        await deleteTreatmentEntry(conflict.id)
+      }
+      for (const weekly of pendingWeekly) {
+        await saveTreatmentEntry({
+          monthKey,
+          entryDate: entryDate.trim(),
+          weekSlot: weekSlotFromDateInMonth(entryDate.trim(), monthKey),
+          category: weekly.category,
+          location: weekly.location,
+          value: weekly.value,
+        })
+      }
+
       setValues(emptyStateForFields(location.fields))
       setSaveMessage('Entry saved.')
       window.setTimeout(() => setSaveMessage(null), 4000)
@@ -309,11 +445,8 @@ export function LocationLogPage() {
     return (
       <div className="rounded-2xl bg-white/95 p-6 text-center shadow-xl ring-1 ring-white/60 sm:p-8">
         <p className="text-base text-slate-700">That location was not found.</p>
-        <Link
-          to="/"
-          className="mt-5 inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-xl px-4 text-base font-medium text-sky-700 underline-offset-2 ring-1 ring-sky-200 hover:bg-sky-50 hover:underline"
-        >
-          Back to locations
+        <Link to="/" className={`${backNavOnLightClass} mt-5`}>
+          ← Back to locations
         </Link>
       </div>
     )
@@ -325,11 +458,11 @@ export function LocationLogPage() {
         <div>
           <Link
             to="/"
-            className="inline-flex min-h-[44px] items-center text-sm font-medium text-sky-100/90 underline-offset-2 hover:underline"
+            className={`${backNavOnDarkClass} mb-4 block w-fit sm:mb-0 sm:inline-flex`}
           >
-            ← All locations
+            ← Home
           </Link>
-          <h1 className="mt-1 text-[1.35rem] font-semibold leading-snug tracking-tight text-white sm:mt-2 sm:text-3xl">
+          <h1 className="mt-0 text-[1.35rem] font-semibold leading-snug tracking-tight text-white sm:mt-2 sm:text-3xl">
             {location.name}
           </h1>
           {location.shortDescription ? (
@@ -362,23 +495,61 @@ export function LocationLogPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-6 sm:space-y-6">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
-            {location.fields.map((field) => (
-              <div key={field.key} className={field.gridClass ?? ''}>
-                <label
-                  htmlFor={field.key}
-                  className="mb-2 block text-sm font-semibold text-slate-700 sm:mb-1.5 sm:text-xs sm:font-semibold sm:uppercase sm:tracking-wide sm:text-slate-500"
-                >
-                  {field.label}
-                </label>
-                <FieldInput
-                  def={field}
-                  value={values[field.key] ?? ''}
-                  onChange={(v) => setField(field.key, v)}
-                />
-              </div>
-            ))}
+          <div className="space-y-4 rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                Daily
+              </span>
+              <p className="text-xs text-slate-500">These fields are for daily readings.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
+              {dailyFields.map((field) => (
+                <div key={field.key} className={field.gridClass ?? ''}>
+                  <label
+                    htmlFor={field.key}
+                    className="mb-2 block text-sm font-semibold text-slate-700 sm:mb-1.5 sm:text-xs sm:font-semibold sm:uppercase sm:tracking-wide sm:text-slate-500"
+                  >
+                    {field.label}
+                  </label>
+                  <FieldInput
+                    def={field}
+                    value={values[field.key] ?? ''}
+                    onChange={(v) => setField(field.key, v)}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
+
+          {weeklyFields.length > 0 ? (
+            <div className="space-y-4 rounded-xl border border-violet-200/90 bg-violet-50/60 p-4 sm:p-5">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <span className="inline-flex w-fit rounded-full bg-violet-200/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-900">
+                  Weekly
+                </span>
+                <p className="text-xs text-violet-900/75">
+                  These values feed the Monthly Treatment Report and override same-week duplicates.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-4">
+                {weeklyFields.map((field) => (
+                  <div key={field.key} className={field.gridClass ?? ''}>
+                    <label
+                      htmlFor={field.key}
+                      className="mb-2 block text-sm font-semibold text-slate-700 sm:mb-1.5 sm:text-xs sm:font-semibold sm:uppercase sm:tracking-wide sm:text-slate-500"
+                    >
+                      {field.label}
+                    </label>
+                    <FieldInput
+                      def={field}
+                      value={values[field.key] ?? ''}
+                      onChange={(v) => setField(field.key, v)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
@@ -439,11 +610,7 @@ export function LocationLogPage() {
           </ul>
         ) : (
           <div className="mt-6 space-y-4">
-            <button
-              type="button"
-              onClick={() => setOpenMonthKey(null)}
-              className="inline-flex min-h-[44px] items-center text-sm font-medium text-sky-700 underline-offset-2 hover:underline"
-            >
+            <button type="button" onClick={() => setOpenMonthKey(null)} className={backNavOnLightClass}>
               ← All months
             </button>
             <h3 className="text-base font-semibold text-bpud-deep sm:text-sm">

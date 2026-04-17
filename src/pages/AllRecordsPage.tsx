@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { LOCATIONS, getLocationById } from '../data/locations'
 import { subscribeAllEntries } from '../services/allEntries'
 import type { LogEntry } from '../types/entry'
+import { backNavOnLightClass } from '../ui/backNav'
 
 function formatSubmittedAt(entry: LogEntry): string {
   const t = entry.submittedAt
@@ -50,10 +51,7 @@ export function AllRecordsPage() {
   return (
     <div className="space-y-6 sm:space-y-8">
       <div className="rounded-2xl bg-white/95 p-5 shadow-xl shadow-black/20 ring-1 ring-white/60 sm:p-8">
-        <Link
-          to="/"
-          className="inline-flex min-h-[44px] items-center text-sm font-medium text-sky-700 underline-offset-2 hover:underline sm:text-xs"
-        >
+        <Link to="/" className={backNavOnLightClass}>
           ← Back to locations
         </Link>
         <h1 className="mt-2 text-[1.5rem] font-semibold leading-tight tracking-tight text-bpud-deep sm:mt-3 sm:text-3xl">
