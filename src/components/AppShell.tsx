@@ -18,22 +18,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className="h-16 w-auto shrink-0 rounded-lg border border-sky-200/60 bg-white p-1.5 shadow-lg shadow-black/20 ring-2 ring-white/65 transition group-hover:border-sky-100 group-hover:ring-white/90 sm:h-20"
             />
           </Link>
-          <nav className="flex w-full max-w-full flex-wrap items-stretch justify-end gap-2 text-sky-100/90 sm:max-w-none sm:w-auto sm:items-center sm:gap-3 sm:text-xs">
+          <nav className="flex w-full max-w-full flex-wrap items-stretch justify-center gap-2 text-sky-100/90 sm:max-w-none sm:w-auto sm:justify-end sm:items-center sm:gap-3 sm:text-xs">
             <Link
               to="/treatment-report"
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl px-4 text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs"
+              className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
             >
               Treatment report
             </Link>
             <Link
               to="/records"
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl px-4 text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs"
+              className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
             >
               All records
             </Link>
             <Link
               to="/admin/settings"
-              className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl px-4 text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs"
+              className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
             >
               Settings
             </Link>

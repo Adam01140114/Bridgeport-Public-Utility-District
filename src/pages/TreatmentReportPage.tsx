@@ -167,9 +167,9 @@ export function TreatmentReportPage() {
   const canSubmitAdd =
     Boolean(activeMonthKey && formDate && formCategory && formLocation) && !saving
 
-  const openAddModal = useCallback(() => {
+  const openAddModal = useCallback((prefillDate?: string) => {
     if (!activeMonthKey) return
-    setFormDate(`${activeMonthKey}-01`)
+    setFormDate(prefillDate ?? `${activeMonthKey}-01`)
     setFormCategory('')
     setFormLocation('')
     setFormValue('')
@@ -362,7 +362,7 @@ export function TreatmentReportPage() {
               <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0">
                 <button
                   type="button"
-                  onClick={openAddModal}
+                  onClick={() => openAddModal()}
                   className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-bpud-water px-5 text-sm font-semibold text-white shadow-md transition hover:bg-[#185a9e] sm:min-h-[44px]"
                 >
                   Add entry
@@ -687,7 +687,7 @@ export function TreatmentReportPage() {
 
       {dayMenuDate ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6"
           role="presentation"
           onClick={() => setDayMenuDate(null)}
         >
@@ -788,13 +788,25 @@ export function TreatmentReportPage() {
               )}
             </ul>
             {dayMenuEditingId ? null : (
-              <button
-                type="button"
-                onClick={() => setDayMenuDate(null)}
-                className="mt-5 inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
-              >
-                Close
-              </button>
+              <div className="mt-5 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (dayMenuDate) openAddModal(dayMenuDate)
+                    setDayMenuDate(null)
+                  }}
+                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-bpud-water px-5 text-sm font-semibold text-white shadow-md transition hover:bg-[#185a9e]"
+                >
+                  Add entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDayMenuDate(null)}
+                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                >
+                  Close
+                </button>
+              </div>
             )}
           </div>
         </div>
