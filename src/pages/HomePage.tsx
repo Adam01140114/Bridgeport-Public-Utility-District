@@ -1,11 +1,39 @@
 import { Link } from 'react-router-dom'
 import { LOCATIONS } from '../data/locations'
 
+/** Legacy treatment report card — hidden on the home page while the weekly field testing flow is primary. */
+const SHOW_LEGACY_TREATMENT_REPORT_CARD = false
+
 export function HomePage() {
   return (
     <div className="space-y-6 sm:space-y-8">
+      {SHOW_LEGACY_TREATMENT_REPORT_CARD ? (
+        <Link
+          to="/treatment-report"
+          className="group relative block overflow-hidden rounded-2xl border border-emerald-300/70 bg-white p-6 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-200/70 transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-xl sm:p-7"
+        >
+          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700/90">
+                Water quality
+              </p>
+              <h2 className="mt-1 text-xl font-semibold leading-tight text-bpud-deep sm:text-2xl">
+                Monthly Treatment Report
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+                Weekly FTK readings (arsenic, iron, pH, chlorine residual) by sample location. Pick a
+                month, add readings, export PDF or Excel in the district worksheet format.
+              </p>
+            </div>
+            <span className="mt-3 inline-flex shrink-0 items-center self-start rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 transition group-hover:bg-emerald-700 sm:mt-1">
+              Open →
+            </span>
+          </div>
+        </Link>
+      ) : null}
+
       <Link
-        to="/treatment-report"
+        to="/test-monthly-report"
         className="group relative block overflow-hidden rounded-2xl border border-emerald-300/70 bg-white p-6 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-200/70 transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-xl sm:p-7"
       >
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -14,11 +42,12 @@ export function HomePage() {
               Water quality
             </p>
             <h2 className="mt-1 text-xl font-semibold leading-tight text-bpud-deep sm:text-2xl">
-              Monthly Treatment Report
+              New Monthly Report
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-              Weekly FTK readings (arsenic, iron, pH, chlorine residual) by sample location. Pick a
-              month, add readings, export PDF or Excel in the district worksheet format.
+              Weekly field testing (arsenic, iron, pH, chlorine residual) by influent and effluent
+              skid and vessel rows. Pick a month, add readings, export PDF or Excel in the district
+              worksheet format.
             </p>
           </div>
           <span className="mt-3 inline-flex shrink-0 items-center self-start rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 transition group-hover:bg-emerald-700 sm:mt-1">

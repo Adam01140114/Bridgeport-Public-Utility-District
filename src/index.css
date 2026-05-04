@@ -10,6 +10,28 @@
   --color-bpud-foam: #f5fafd;
 }
 
+@keyframes tmr-slide-from-right {
+  from {
+    opacity: 0.2;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tmr-slide-from-left {
+  from {
+    opacity: 0.2;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }

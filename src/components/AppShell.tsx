@@ -5,7 +5,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen min-h-[100dvh] flex-col">
       <header className="shrink-0 border-b border-white/10 bg-[#071a2e]/80 pt-[env(safe-area-inset-top,0)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-3 px-4 py-3 sm:justify-between sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-screen-2xl flex-wrap items-center justify-center gap-3 px-4 py-3 sm:justify-between sm:px-6 sm:py-4">
           <Link
             to="/"
             aria-label="Bridgeport Public Utility District"
@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10">
         {children}
       </main>
       <footer className="shrink-0 border-t border-white/10 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-xs text-sky-100/50 sm:text-[11px]">

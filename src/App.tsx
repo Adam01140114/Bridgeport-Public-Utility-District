@@ -4,6 +4,7 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage'
 import { AllRecordsPage } from './pages/AllRecordsPage'
 import { HomePage } from './pages/HomePage'
 import { LocationLogPage } from './pages/LocationLogPage'
+import { TestMonthlyReportPage } from './pages/TestMonthlyReportPage'
 import { TreatmentReportPage } from './pages/TreatmentReportPage'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/location/:locationId" element={<LocationLogPage />} />
           <Route path="/treatment-report" element={<TreatmentReportPage />} />
+          <Route path="/test-monthly-report" element={<TestMonthlyReportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>
