@@ -34,13 +34,13 @@ export function AdminSettingsPage() {
   async function handleDeleteAllData() {
     setError(null)
     const typed = window.prompt(
-      'This permanently deletes ALL location logs and treatment report data in Firestore.\n\nType DELETE ALL (exactly) to confirm:'
+      'This permanently deletes ALL location logs, treatment report data, and weekly field test drafts in Firestore.\n\nType DELETE ALL (exactly) to confirm:'
     )
     if (typed !== 'DELETE ALL') {
       if (typed !== null) window.alert('Confirmation text did not match. Nothing was deleted.')
       return
     }
-    if (!window.confirm('Last chance: delete every log entry and treatment report entry?')) {
+    if (!window.confirm('Last chance: delete every log entry, treatment entry, and weekly field test report?')) {
       return
     }
     setDeleting(true)
@@ -49,7 +49,8 @@ export function AdminSettingsPage() {
       window.alert(
         `All data deleted.\n\n` +
           `• ${result.logEntriesDeleted} location log documents removed\n` +
-          `• ${result.treatmentEntriesDeleted} treatment report documents removed`
+          `• ${result.treatmentEntriesDeleted} treatment report documents removed\n` +
+          `• ${result.weeklyFieldTestReportsDeleted} weekly field test documents removed`
       )
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Delete failed.'

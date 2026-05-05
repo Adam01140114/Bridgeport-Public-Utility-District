@@ -8,5 +8,8 @@ service cloud.firestore {
     match /treatmentReportEntries/{entryId} {
       allow read, write: if true;
     }
+    match /weeklyFieldTestReports/{reportId} {
+      allow read, write: if true;
+    }
   }
 }

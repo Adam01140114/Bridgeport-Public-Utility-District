@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { shiftMonthKey } from '../data/monthKeyNav'
 import { formatMonthTitle } from '../data/treatmentReport'
@@ -12,6 +12,10 @@ import {
 } from '../data/testMonthlyReportLayout'
 import { exportTestMonthlyReportXlsx } from '../excel/testMonthlyReportXlsx'
 import { exportTestMonthlyReportPdf } from '../pdf/testMonthlyReportPdf'
+import {
+  fetchWeeklyFieldTestValues,
+  persistWeeklyFieldTestValues,
+} from '../services/weeklyFieldTestReports'
 import { backNavOnDarkClass, backNavOnLightClass } from '../ui/backNav'
 
 function monthKeyFromParts(year: number, monthIndex: number): string {
@@ -459,6 +463,15 @@ export function TestMonthlyReportPage() {
   const [activeMonthKey, setActiveMonthKey] = useState<string | null>(null)
   const [activeWeekIndex, setActiveWeekIndex] = useState(0)
   const [valuesByWeek, setValuesByWeek] = useState<Record<string, Record<string, string>>>({})
+  const valuesByWeekRef = useRef(valuesByWeek)
+  useEffect(() => {
+    valuesByWeekRef.current = valuesByWeek
+  }, [valuesByWeek])
+
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [firestoreError, setFirestoreError] = useState<string | null>(null)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
   const [tableMotion, setTableMotion] = useState<{ seq: number; dir: 'left' | 'right' | null }>({
     seq: 0,
     dir: null,
@@ -480,15 +493,60 @@ export function TestMonthlyReportPage() {
     activeMonthKey && phase === 'form' ? weekStorageKey(activeMonthKey, activeWeekIndex) : null
   const values = storageKey ? (valuesByWeek[storageKey] ?? {}) : {}
 
+  const clearPersistTimer = useCallback(() => {
+    if (persistTimerRef.current) {
+      clearTimeout(persistTimerRef.current)
+      persistTimerRef.current = null
+    }
+  }, [])
+
+  const persistWeekNow = useCallback(async (key: string, opts?: { silent?: boolean }) => {
+    const vals = valuesByWeekRef.current[key]
+    if (!vals) return
+    try {
+      if (!opts?.silent) setSaveStatus('saving')
+      setFirestoreError(null)
+      await persistWeeklyFieldTestValues({ weekStorageKey: key, values: vals })
+      if (!opts?.silent) {
+        setSaveStatus('saved')
+        window.setTimeout(() => setSaveStatus('idle'), 2000)
+      }
+    } catch (e) {
+      setFirestoreError(e instanceof Error ? e.message : 'Could not save to Firestore.')
+      setSaveStatus('idle')
+    }
+  }, [])
+
+  const schedulePersist = useCallback(() => {
+    const key = storageKey
+    if (!key || phase !== 'form') return
+    clearPersistTimer()
+    persistTimerRef.current = setTimeout(() => {
+      persistTimerRef.current = null
+      void persistWeekNow(key)
+    }, 750)
+  }, [storageKey, phase, clearPersistTimer, persistWeekNow])
+
+  const flushPendingPersist = useCallback(
+    async (key: string) => {
+      clearPersistTimer()
+      await persistWeekNow(key, { silent: true })
+    },
+    [clearPersistTimer, persistWeekNow],
+  )
+
   const onFieldChange = useCallback(
     (key: string, v: string) => {
       if (!storageKey) return
-      setValuesByWeek((prev) => ({
-        ...prev,
-        [storageKey]: { ...(prev[storageKey] ?? {}), [key]: v },
-      }))
+      setValuesByWeek((prev) => {
+        const nextEntry = { ...(prev[storageKey] ?? {}), [key]: v }
+        const next = { ...prev, [storageKey]: nextEntry }
+        valuesByWeekRef.current = next
+        return next
+      })
+      schedulePersist()
     },
-    [storageKey],
+    [storageKey, schedulePersist],
   )
 
   useEffect(() => {
@@ -503,9 +561,45 @@ export function TestMonthlyReportPage() {
       if (!cur) return prev
       const d = cur['header:date'] ?? ''
       if (!ISO_DATE_RE.test(d) || (d >= min && d <= max)) return prev
-      return { ...prev, [storageKey]: { ...cur, 'header:date': '' } }
+      const next = { ...prev, [storageKey]: { ...cur, 'header:date': '' } }
+      valuesByWeekRef.current = next
+      return next
     })
   }, [storageKey, activeMonthKey, activeWeekIndex])
+
+  useEffect(() => {
+    if (!storageKey || phase !== 'form') return
+    let cancelled = false
+    setFirestoreError(null)
+    ;(async () => {
+      try {
+        const remote = await fetchWeeklyFieldTestValues(storageKey)
+        if (cancelled) return
+        if (remote && Object.keys(remote).length > 0) {
+          setValuesByWeek((prev) => {
+            const existing = prev[storageKey]
+            if (existing && Object.keys(existing).length > 0) return prev
+            const next = { ...prev, [storageKey]: remote }
+            valuesByWeekRef.current = next
+            return next
+          })
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setFirestoreError(e instanceof Error ? e.message : 'Could not load saved data.')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [storageKey, phase])
+
+  useEffect(() => {
+    return () => {
+      clearPersistTimer()
+    }
+  }, [clearPersistTimer])
 
   const selectMonth = useCallback((key: string) => {
     setActiveMonthKey(key)
@@ -519,14 +613,16 @@ export function TestMonthlyReportPage() {
     setTableMotion({ seq: 0, dir: null })
   }, [])
 
-  const goToChangeMonth = useCallback(() => {
+  const goToChangeMonth = useCallback(async () => {
+    if (storageKey) await flushPendingPersist(storageKey)
     setActiveMonthKey(null)
     setActiveWeekIndex(0)
     setPhase('month')
     setTableMotion({ seq: 0, dir: null })
-  }, [])
+  }, [storageKey, flushPendingPersist])
 
-  const goPrevWeek = useCallback(() => {
+  const goPrevWeek = useCallback(async () => {
+    if (storageKey) await flushPendingPersist(storageKey)
     setTableMotion((m) => ({ seq: m.seq + 1, dir: 'left' }))
     if (activeWeekIndex > 0) {
       setActiveWeekIndex((i) => i - 1)
@@ -536,9 +632,10 @@ export function TestMonthlyReportPage() {
     const prevWeeks = weekSlicesInMonth(prevKey)
     setActiveMonthKey(prevKey)
     setActiveWeekIndex(Math.max(0, prevWeeks.length - 1))
-  }, [activeWeekIndex, activeMonthKey])
+  }, [storageKey, flushPendingPersist, activeWeekIndex, activeMonthKey])
 
-  const goNextWeek = useCallback(() => {
+  const goNextWeek = useCallback(async () => {
+    if (storageKey) await flushPendingPersist(storageKey)
     setTableMotion((m) => ({ seq: m.seq + 1, dir: 'right' }))
     if (activeWeekIndex < lastWeekIndex) {
       setActiveWeekIndex((i) => i + 1)
@@ -547,7 +644,7 @@ export function TestMonthlyReportPage() {
     const nextKey = shiftMonthKey(activeMonthKey!, 1)
     setActiveMonthKey(nextKey)
     setActiveWeekIndex(0)
-  }, [activeWeekIndex, lastWeekIndex, activeMonthKey])
+  }, [storageKey, flushPendingPersist, activeWeekIndex, lastWeekIndex, activeMonthKey])
 
   useEffect(() => {
     if (!activeMonthKey) return
@@ -626,12 +723,26 @@ export function TestMonthlyReportPage() {
             Change date
           </button>
         </div>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/90">
-          Experimental
-        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/90">
+            Experimental
+          </p>
+          {saveStatus === 'saving' ? (
+            <p className="text-xs font-medium text-sky-200/90">Saving…</p>
+          ) : saveStatus === 'saved' ? (
+            <p className="text-xs font-medium text-emerald-300/95">Saved</p>
+          ) : (
+            <p className="text-xs font-medium text-sky-200/70">Cloud sync on</p>
+          )}
+        </div>
         <h1 className="mt-1 text-xl font-semibold leading-snug text-white sm:text-2xl">
           {weekHeadingLine}
         </h1>
+        {firestoreError ? (
+          <p className="mt-2 max-w-xl rounded-lg border border-amber-400/50 bg-amber-950/40 px-3 py-2 text-sm text-amber-100">
+            {firestoreError}
+          </p>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border-2 border-slate-900 bg-white shadow-2xl ring-1 ring-slate-300/80">
