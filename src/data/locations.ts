@@ -145,36 +145,11 @@ const twinLakesFields: FieldDef[] = [
     cadence: 'daily',
   },
   {
-    key: 'weeklyArsenicFtk',
-    label: 'Arsenic (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
-  },
-  {
-    key: 'weeklyIronFtk',
-    label: 'Iron (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
-  },
-  {
-    key: 'weeklyPhFtk',
-    label: 'PH (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
-  },
-  {
-    key: 'weeklyCl2ResFtk',
-    label: 'CL2 - Res. (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
+    key: 'notes',
+    label: 'Notes',
+    type: 'textarea',
+    gridClass: 'sm:col-span-2',
+    cadence: 'daily',
   },
 ]
 
@@ -208,38 +183,6 @@ const cainWellFields: FieldDef[] = [
     type: 'text',
     gridClass: 'sm:col-span-1',
     cadence: 'daily',
-  },
-  {
-    key: 'weeklyArsenicFtk',
-    label: 'Arsenic (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
-  },
-  {
-    key: 'weeklyIronFtk',
-    label: 'Iron (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
-  },
-  {
-    key: 'weeklyPhFtk',
-    label: 'PH (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
-  },
-  {
-    key: 'weeklyCl2ResFtk',
-    label: 'CL2 - Res. (FTK)',
-    type: 'text',
-    placeholder: 'Weekly',
-    gridClass: 'sm:col-span-1',
-    cadence: 'weekly',
   },
   {
     key: 'comments',
@@ -390,10 +333,22 @@ const tankFields: FieldDef[] = [
 
 export const LOCATIONS: LocationDef[] = [
   {
+    id: 'twin-lakes-well-i-arsenic-plant',
+    name: 'Twin Lakes Well I Arsenic Plant',
+    shortDescription: 'Well treatment plant readings',
+    fields: twinLakesFields,
+  },
+  {
     id: 'cal-trans-lift-station',
     name: 'Cal Trans Lift Station',
     shortDescription: 'Dual pump meter and run hours',
     fields: liftStationFields,
+  },
+  {
+    id: 'cain-well-daily-log',
+    name: 'Cain Well - Daily Log',
+    shortDescription: 'Daily well operating log',
+    fields: cainWellFields,
   },
   {
     id: 'art-webb-lift-station',
@@ -402,22 +357,16 @@ export const LOCATIONS: LocationDef[] = [
     fields: artWebbLiftStationFields,
   },
   {
+    id: 'evans-tank',
+    name: 'Evans Tank',
+    shortDescription: 'Multiple tank level readings',
+    fields: tankFields,
+  },
+  {
     id: 'stock-dr-lift-station',
     name: 'Stock Dr. Lift Station',
     shortDescription: 'Dual pump meter and run hours',
     fields: liftStationFields,
-  },
-  {
-    id: 'twin-lakes-well-i-arsenic-plant',
-    name: 'Twin Lakes Well I Arsenic Plant',
-    shortDescription: 'Well treatment plant readings',
-    fields: twinLakesFields,
-  },
-  {
-    id: 'cain-well-daily-log',
-    name: 'Cain Well - Daily Log',
-    shortDescription: 'Daily well operating log',
-    fields: cainWellFields,
   },
   {
     id: 'coasting-hill-construction-water-well',
@@ -430,12 +379,6 @@ export const LOCATIONS: LocationDef[] = [
     name: 'Sewer Ponds',
     shortDescription: 'Aerators and pond conditions',
     fields: sewerPondsFields,
-  },
-  {
-    id: 'evans-tank',
-    name: 'Evans Tank',
-    shortDescription: 'Multiple tank level readings',
-    fields: tankFields,
   },
   {
     id: 'coasting-hill-tank',

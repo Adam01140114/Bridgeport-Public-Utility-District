@@ -141,10 +141,27 @@ function formatMonthHeading(ymKey: string): string {
   })
 }
 
+const COASTING_HILL_CONSTRUCTION_WELL_ID = 'coasting-hill-construction-water-well'
+
+/** On save: default numeric fields to 0 and well switch to Off when left blank. */
+function normalizeEntryValuesForSave(
+  locationId: string,
+  values: Record<string, string>,
+): Record<string, string> {
+  if (locationId !== COASTING_HILL_CONSTRUCTION_WELL_ID) return { ...values }
+  const v = { ...values }
+  for (const key of ['meterReading', 'gallonsUsed', 'pressure'] as const) {
+    if (!v[key]?.trim()) v[key] = '0'
+  }
+  if (!v.wellOnOff?.trim()) v.wellOnOff = 'Off'
+  return v
+}
+
 type WeeklySourceConfig = {
   locationId: string
   treatmentLocation: TreatmentLocation
-  fields: Array<{ key: string; category: TreatmentCategory }>
+  /** Weekly FTK fields from daily logs (removed — kept for shape only). */
+  fields?: Array<{ key: string; category: TreatmentCategory }>
   /** Twin Lakes: map daily “FE tank” into Monthly Treatment Report row “FE Inches”. */
   feTankTreatment?: {
     key: 'feTank'
@@ -153,26 +170,11 @@ type WeeklySourceConfig = {
   }
 }
 
+/** Only Twin Lakes still pushes FE tank (daily) into the treatment report from this log. */
 const WEEKLY_SOURCE_CONFIG: WeeklySourceConfig[] = [
-  {
-    locationId: 'cain-well-daily-log',
-    treatmentLocation: 'Cain Well #4',
-    fields: [
-      { key: 'weeklyArsenicFtk', category: 'Arsenic (FTK)' },
-      { key: 'weeklyIronFtk', category: 'Iron (FTK)' },
-      { key: 'weeklyPhFtk', category: 'PH (FTK)' },
-      { key: 'weeklyCl2ResFtk', category: 'CL2 - Res. (FTK)' },
-    ],
-  },
   {
     locationId: 'twin-lakes-well-i-arsenic-plant',
     treatmentLocation: 'Twin Well #2',
-    fields: [
-      { key: 'weeklyArsenicFtk', category: 'Arsenic (FTK)' },
-      { key: 'weeklyIronFtk', category: 'Iron (FTK)' },
-      { key: 'weeklyPhFtk', category: 'PH (FTK)' },
-      { key: 'weeklyCl2ResFtk', category: 'CL2 - Res. (FTK)' },
-    ],
     feTankTreatment: { key: 'feTank', category: 'FE Inches', location: 'Twin Well #2' },
   },
 ]
@@ -354,7 +356,7 @@ export function LocationLogPage() {
         value: string
       }> = []
       if (weeklyConfig) {
-        for (const wf of weeklyConfig.fields) {
+        for (const wf of weeklyConfig.fields ?? []) {
           const value = (values[wf.key] ?? '').trim()
           if (value !== '') {
             pendingWeekly.push({
@@ -414,7 +416,7 @@ export function LocationLogPage() {
         locationId: location.id,
         locationName: location.name,
         entryDate: entryDate.trim(),
-        values: { ...values },
+        values: normalizeEntryValuesForSave(location.id, values),
       })
 
       for (const conflict of weeklyConflicts) {

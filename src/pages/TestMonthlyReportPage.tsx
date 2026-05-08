@@ -828,14 +828,16 @@ export function TestMonthlyReportPage() {
                 <label htmlFor={footerFieldId('well')} className="block text-xs font-semibold text-slate-700">
                   What well is running?
                 </label>
-                <input
+                <select
                   id={footerFieldId('well')}
-                  type="text"
                   value={values['footer:well'] ?? ''}
                   onChange={(e) => onFieldChange('footer:well', e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-600 bg-white/90 px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-600"
-                  placeholder="e.g. Twin"
-                />
+                  className="mt-1 w-full cursor-pointer rounded-md border border-slate-600 bg-white/90 px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-600"
+                >
+                  <option value="">Select…</option>
+                  <option value="Twin Lakes Well">Twin Lakes Well</option>
+                  <option value="Cain Well">Cain Well</option>
+                </select>
               </div>
               <div>
                 <label htmlFor={footerFieldId('tester')} className="block text-xs font-semibold text-slate-700">
@@ -902,8 +904,9 @@ export function TestMonthlyReportPage() {
           <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-end">
             <button
               type="button"
-              onClick={() => {
-                if (!activeMonthKey || !currentWeekSlice) return
+              onClick={async () => {
+                if (!activeMonthKey || !currentWeekSlice || !storageKey) return
+                await flushPendingPersist(storageKey)
                 exportTestMonthlyReportPdf({
                   monthKey: activeMonthKey,
                   weekNumber: currentWeekSlice.weekNumber,
@@ -917,8 +920,9 @@ export function TestMonthlyReportPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                if (!activeMonthKey || !currentWeekSlice) return
+              onClick={async () => {
+                if (!activeMonthKey || !currentWeekSlice || !storageKey) return
+                await flushPendingPersist(storageKey)
                 exportTestMonthlyReportXlsx({
                   monthKey: activeMonthKey,
                   weekNumber: currentWeekSlice.weekNumber,
