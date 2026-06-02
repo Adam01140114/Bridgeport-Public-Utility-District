@@ -5,9 +5,11 @@ import {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-/** Cain influent column weeks 1 & 4; Twin influent column weeks 2 & 3 (matches district sheet pattern). */
-const CAIN_WEEK_INDICES = new Set([0, 3])
-const TWIN_WEEK_INDICES = new Set([1, 2])
+/** Template columns on “Weekly Field Test” sheet. */
+const COL_CAIN_INFLUENT = 3
+const COL_TWIN_INFLUENT = 4
+const COL_WEEKLY_EFFLUENT = 5
+const COL_VESSEL_EFFLUENT_START = 6
 
 const CATEGORY_START_ROW = {
   chlorine: 5,
@@ -52,6 +54,14 @@ function weekDateIso(bundle: WeekFieldTestBundle): string {
   return bundle.fallbackDateIso
 }
 
+/** `footer:well` → influent column (Cain #4 or Twin #2). */
+function influentColumnForWeek(bundle: WeekFieldTestBundle): number | null {
+  const well = bundle.values['footer:well']?.trim()
+  if (well === 'Cain Well') return COL_CAIN_INFLUENT
+  if (well === 'Twin Lakes Well') return COL_TWIN_INFLUENT
+  return null
+}
+
 export type TemplateWeeklyCell = {
   row: number
   col: number
@@ -75,6 +85,7 @@ export function buildWeeklyTemplateCells(
     if (weekIndex < 0 || weekIndex > 3) continue
 
     const dateIso = weekDateIso(bundle)
+    const influentCol = influentColumnForWeek(bundle)
 
     for (const category of Object.keys(CATEGORY_START_ROW) as TemplateCategory[]) {
       const row = CATEGORY_START_ROW[category] + weekIndex
@@ -84,21 +95,18 @@ export function buildWeeklyTemplateCells(
       const influent = readAnalyte(bundle.values, 'in-skid', analyte)
       const effluent = readAnalyte(bundle.values, 'ex-skid', analyte)
 
-      if (CAIN_WEEK_INDICES.has(weekIndex) && hasValue(influent)) {
-        values.push({ row, col: 3, value: influent })
-      }
-      if (TWIN_WEEK_INDICES.has(weekIndex) && hasValue(influent)) {
-        values.push({ row, col: 4, value: influent })
+      if (influentCol !== null && hasValue(influent)) {
+        values.push({ row, col: influentCol, value: influent })
       }
       if (hasValue(effluent)) {
-        values.push({ row, col: 5, value: effluent })
+        values.push({ row, col: COL_WEEKLY_EFFLUENT, value: effluent })
       }
 
       if (category === 'chlorine' || category === 'iron') {
         VESSEL_EFFLUENT_ROWS.forEach((rowId, index) => {
           const vesselVal = readAnalyte(bundle.values, rowId, analyte)
           if (hasValue(vesselVal)) {
-            values.push({ row, col: 6 + index, value: vesselVal })
+            values.push({ row, col: COL_VESSEL_EFFLUENT_START + index, value: vesselVal })
           }
         })
       }
