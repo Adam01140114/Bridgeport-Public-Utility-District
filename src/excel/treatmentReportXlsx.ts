@@ -1,4 +1,3 @@
-import { weekSlicesInMonth, toIsoDateLocal } from '../data/monthWeekSlices'
 import {
   fillFeSheetFromTreatmentEntries,
   fillWeeklySheetFromTreatmentEntries,
@@ -6,9 +5,7 @@ import {
   loadTreatmentReportTemplateWorkbook,
   writeTreatmentReportWorkbook,
 } from './treatmentReportTemplate'
-import type { WeekFieldTestBundle } from '../export/weeklyFieldTestToTemplate'
 import { computeMonthlyMeterUsage } from '../services/meterUsage'
-import { fetchWeeklyFieldTestValuesForMonth } from '../services/weeklyFieldTestReports'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
 const SHEET_WEEKLY = 'Weekly Field Test'
@@ -27,15 +24,8 @@ export async function downloadTreatmentReportXlsx(
 
   fillWeeklySheetFromTreatmentEntries(weekly, monthKey, entries)
 
-  const slices = weekSlicesInMonth(monthKey)
-  const remote = await fetchWeeklyFieldTestValuesForMonth(monthKey, slices.length)
-  const weeks: WeekFieldTestBundle[] = slices.map((slice, weekIndex) => ({
-    weekIndex,
-    values: remote.get(weekIndex) ?? {},
-    fallbackDateIso: toIsoDateLocal(slice.start),
-  }))
   const usage = await computeMonthlyMeterUsage(monthKey)
-  fillWeeklySheetSummary(weekly, weeks, usage)
+  fillWeeklySheetSummary(weekly, usage)
 
   fillFeSheetFromTreatmentEntries(fe, monthKey, entries)
 

@@ -6,10 +6,7 @@ import {
   weekRowDate,
 } from '../data/treatmentReport'
 import type { TreatmentCategory } from '../data/treatmentReport'
-import {
-  buildMonthlyNoteLines,
-  WEEKLY_SHEET_SUMMARY,
-} from '../export/monthlyReportNotes'
+import { WEEKLY_SHEET_SUMMARY } from '../export/monthlyReportNotes'
 import {
   buildWeeklyTemplateCells,
   type WeekFieldTestBundle,
@@ -183,22 +180,15 @@ export function fillWeeklySheetFromTreatmentEntries(
   normalizeInfluentColumnFonts(ws)
 }
 
-function clearWeeklySummaryCells(ws: ExcelJS.Worksheet): void {
+function clearWeeklyGallonCells(ws: ExcelJS.Worksheet): void {
   ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsCainRow).getCell(WEEKLY_SHEET_SUMMARY.gallonsValueCol).value =
     null
   ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsTwinRow).getCell(WEEKLY_SHEET_SUMMARY.gallonsValueCol).value =
     null
-  for (let i = 0; i < WEEKLY_SHEET_SUMMARY.notesMaxRows; i++) {
-    ws.getRow(WEEKLY_SHEET_SUMMARY.notesFirstRow + i).getCell(1).value = null
-  }
 }
 
-export function fillWeeklySheetSummary(
-  ws: ExcelJS.Worksheet,
-  bundles: WeekFieldTestBundle[],
-  usage: MonthlyMeterUsage
-): void {
-  clearWeeklySummaryCells(ws)
+export function fillWeeklySheetSummary(ws: ExcelJS.Worksheet, usage: MonthlyMeterUsage): void {
+  clearWeeklyGallonCells(ws)
 
   const col = WEEKLY_SHEET_SUMMARY.gallonsValueCol
   if (usage.cainGallons !== null) {
@@ -207,12 +197,6 @@ export function fillWeeklySheetSummary(
   if (usage.twinGallons !== null) {
     ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsTwinRow).getCell(col).value = usage.twinGallons
   }
-
-  const noteLines = buildMonthlyNoteLines(bundles)
-  noteLines.forEach((line, index) => {
-    if (index >= WEEKLY_SHEET_SUMMARY.notesMaxRows) return
-    ws.getRow(WEEKLY_SHEET_SUMMARY.notesFirstRow + index).getCell(1).value = line
-  })
 }
 
 export function fillWeeklySheetFromFieldTests(
@@ -233,7 +217,7 @@ export function fillWeeklySheetFromFieldTests(
   }
   normalizeInfluentColumnFonts(ws)
 
-  fillWeeklySheetSummary(ws, bundles, usage)
+  fillWeeklySheetSummary(ws, usage)
 }
 
 function clearFeDayRow(ws: ExcelJS.Worksheet, row: number): void {
