@@ -15,6 +15,7 @@ import {
   type WeekFieldTestBundle,
 } from '../export/weeklyFieldTestToTemplate'
 import type { MonthlyMeterUsage } from '../services/meterUsage'
+import { applyWeeklyInfluentColumnStyles } from './weeklySheetInfluentStyles'
 import { FE_INCHES_EXPORT_LOCATION } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 import templateAssetUrl from '../assets/monthly-treatment-report-template.xlsx?url'
@@ -145,6 +146,8 @@ export function fillWeeklySheetFromTreatmentEntries(
       }
     }
   }
+
+  applyWeeklyInfluentColumnStyles(ws)
 }
 
 function clearWeeklySummaryCells(ws: ExcelJS.Worksheet): void {
@@ -196,6 +199,7 @@ export function fillWeeklySheetFromFieldTests(
     ws.getRow(row).getCell(col).value = coerceExportValue(value)
   }
 
+  applyWeeklyInfluentColumnStyles(ws, bundles)
   fillWeeklySheetSummary(ws, bundles, usage)
 }
 

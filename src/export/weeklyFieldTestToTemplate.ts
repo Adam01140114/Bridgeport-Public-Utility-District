@@ -6,8 +6,12 @@ import {
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /** Template columns on “Weekly Field Test” sheet. */
-const COL_CAIN_INFLUENT = 3
-const COL_TWIN_INFLUENT = 4
+export const COL_CAIN_INFLUENT = 3
+export const COL_TWIN_INFLUENT = 4
+
+export const WEEKLY_INFLUENT_COLUMNS = [COL_CAIN_INFLUENT, COL_TWIN_INFLUENT] as const
+
+export const WEEKLY_CATEGORY_START_ROWS = [5, 9, 13, 17] as const
 const COL_WEEKLY_EFFLUENT = 5
 const COL_VESSEL_EFFLUENT_START = 6
 
@@ -55,7 +59,7 @@ function weekDateIso(bundle: WeekFieldTestBundle): string {
 }
 
 /** `footer:well` → influent column (Cain #4 or Twin #2). */
-function influentColumnForWeek(bundle: WeekFieldTestBundle): number | null {
+export function activeInfluentColumnForBundle(bundle: WeekFieldTestBundle): number | null {
   const well = bundle.values['footer:well']?.trim()
   if (well === 'Cain Well') return COL_CAIN_INFLUENT
   if (well === 'Twin Lakes Well') return COL_TWIN_INFLUENT
@@ -85,7 +89,7 @@ export function buildWeeklyTemplateCells(
     if (weekIndex < 0 || weekIndex > 3) continue
 
     const dateIso = weekDateIso(bundle)
-    const influentCol = influentColumnForWeek(bundle)
+    const influentCol = activeInfluentColumnForBundle(bundle)
 
     for (const category of Object.keys(CATEGORY_START_ROW) as TemplateCategory[]) {
       const row = CATEGORY_START_ROW[category] + weekIndex
