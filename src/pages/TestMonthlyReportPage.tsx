@@ -162,10 +162,14 @@ function WeekPicker({
   monthKey,
   onSelectWeek,
   onBackToMonth,
+  onExportExcel,
+  exportBusy,
 }: {
   monthKey: string
   onSelectWeek: (weekIndex: number) => void
   onBackToMonth: () => void
+  onExportExcel: () => void | Promise<void>
+  exportBusy?: boolean
 }) {
   const weeks = useMemo(() => weekSlicesInMonth(monthKey), [monthKey])
   return (
@@ -197,6 +201,16 @@ function WeekPicker({
             </span>
           </button>
         ))}
+      </div>
+      <div className="mt-8 flex justify-center">
+        <button
+          type="button"
+          onClick={() => void onExportExcel()}
+          disabled={exportBusy}
+          className="inline-flex min-h-[48px] min-w-[12rem] items-center justify-center rounded-xl border-2 border-emerald-400/80 bg-emerald-600 px-8 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {exportBusy ? 'Exporting…' : 'Export Excel'}
+        </button>
       </div>
     </section>
   )
@@ -431,6 +445,7 @@ export function TestMonthlyReportPage() {
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [firestoreError, setFirestoreError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [exportBusy, setExportBusy] = useState(false)
 
   const [tableMotion, setTableMotion] = useState<{ seq: number; dir: 'left' | 'right' | null }>({
     seq: 0,
@@ -494,6 +509,35 @@ export function TestMonthlyReportPage() {
     },
     [clearPersistTimer, persistWeekNow],
   )
+
+  const exportMonthExcel = useCallback(async () => {
+    if (!activeMonthKey) return
+    if (storageKey) await flushPendingPersist(storageKey)
+    setExportBusy(true)
+    try {
+      const slices = weekSlicesInMonth(activeMonthKey)
+      const remote = await fetchWeeklyFieldTestValuesForMonth(activeMonthKey, slices.length)
+      const weeks = slices.map((slice, weekIndex) => {
+        const key = weekStorageKey(activeMonthKey, weekIndex)
+        return {
+          weekIndex,
+          values: {
+            ...(remote.get(weekIndex) ?? {}),
+            ...(valuesByWeekRef.current[key] ?? {}),
+          },
+          fallbackDateIso: toIsoDateLocal(slice.start),
+        }
+      })
+      await exportMonthlyFieldTestReportXlsx({ monthKey: activeMonthKey, weeks })
+    } catch (e) {
+      console.error(e)
+      window.alert(
+        e instanceof Error ? e.message : 'Could not export Excel. Please try again.',
+      )
+    } finally {
+      setExportBusy(false)
+    }
+  }, [activeMonthKey, storageKey, flushPendingPersist])
 
   const onFieldChange = useCallback(
     (key: string, v: string) => {
@@ -656,6 +700,8 @@ export function TestMonthlyReportPage() {
           monthKey={activeMonthKey}
           onSelectWeek={selectWeekAndOpenForm}
           onBackToMonth={goToChangeMonth}
+          onExportExcel={exportMonthExcel}
+          exportBusy={exportBusy}
         />
       </div>
     )
@@ -881,43 +927,11 @@ export function TestMonthlyReportPage() {
             </button>
             <button
               type="button"
-              onClick={async () => {
-                if (!activeMonthKey) return
-                if (storageKey) await flushPendingPersist(storageKey)
-                try {
-                  const slices = weekSlicesInMonth(activeMonthKey)
-                  const remote = await fetchWeeklyFieldTestValuesForMonth(
-                    activeMonthKey,
-                    slices.length,
-                  )
-                  const weeks = slices.map((slice, weekIndex) => {
-                    const key = weekStorageKey(activeMonthKey, weekIndex)
-                    const merged = {
-                      ...(remote.get(weekIndex) ?? {}),
-                      ...(valuesByWeekRef.current[key] ?? {}),
-                    }
-                    return {
-                      weekIndex,
-                      values: merged,
-                      fallbackDateIso: toIsoDateLocal(slice.start),
-                    }
-                  })
-                  await exportMonthlyFieldTestReportXlsx({
-                    monthKey: activeMonthKey,
-                    weeks,
-                  })
-                } catch (e) {
-                  console.error(e)
-                  window.alert(
-                    e instanceof Error
-                      ? e.message
-                      : 'Could not export Excel. Please try again.',
-                  )
-                }
-              }}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border-2 border-emerald-800 bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+              onClick={() => void exportMonthExcel()}
+              disabled={exportBusy}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border-2 border-emerald-800 bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Export Excel
+              {exportBusy ? 'Exporting…' : 'Export Excel'}
             </button>
           </div>
         </div>

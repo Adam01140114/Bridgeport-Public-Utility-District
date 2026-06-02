@@ -47,18 +47,14 @@ const COL_TWIN_INFLUENT = 4
 const INFLUENT_DATA_COLS = [COL_CAIN_INFLUENT, COL_TWIN_INFLUENT] as const
 const BLACK_FONT_ARGB = 'FF000000'
 
-let templateLoadPromise: Promise<ArrayBuffer> | null = null
-
+/** Fetch each export — avoids serving a stale in-memory copy after the template asset is updated. */
 function loadTemplateBuffer(): Promise<ArrayBuffer> {
-  if (!templateLoadPromise) {
-    templateLoadPromise = fetch(templateAssetUrl).then((res) => {
-      if (!res.ok) {
-        throw new Error(`Failed to load treatment report template (${res.status})`)
-      }
-      return res.arrayBuffer()
-    })
-  }
-  return templateLoadPromise
+  return fetch(templateAssetUrl).then((res) => {
+    if (!res.ok) {
+      throw new Error(`Failed to load treatment report template (${res.status})`)
+    }
+    return res.arrayBuffer()
+  })
 }
 
 export async function loadTreatmentReportTemplateWorkbook(): Promise<ExcelJS.Workbook> {
