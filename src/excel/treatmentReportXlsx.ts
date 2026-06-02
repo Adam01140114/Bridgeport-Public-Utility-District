@@ -1,58 +1,27 @@
-import * as XLSX from 'xlsx'
-import { formatMonthTitle } from '../data/treatmentReport'
 import {
-  buildFeTreatmentReportBody,
-  buildFeTreatmentReportHeaderRow,
-  buildWeeklyTreatmentReportBody,
-  buildWeeklyTreatmentReportHeaderRow,
-} from '../export/treatmentReportGrid'
+  fillFeSheetFromTreatmentEntries,
+  fillWeeklySheetFromTreatmentEntries,
+  loadTreatmentReportTemplateWorkbook,
+  writeTreatmentReportWorkbook,
+} from './treatmentReportTemplate'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
-const TITLE = 'Bridgeport Public Utility District - Monthly Treatment Report'
+const SHEET_WEEKLY = 'Weekly Field Test'
+const SHEET_FE = 'FE Tank (inches)'
 
-export function downloadTreatmentReportXlsx(monthKey: string, entries: TreatmentReportEntry[]): void {
-  const sub = `Month Of: ${formatMonthTitle(monthKey)}`
-  const weeklyHeader = buildWeeklyTreatmentReportHeaderRow()
-  const weeklyBody = buildWeeklyTreatmentReportBody(monthKey, entries)
+export async function downloadTreatmentReportXlsx(
+  monthKey: string,
+  entries: TreatmentReportEntry[]
+): Promise<void> {
+  const workbook = await loadTreatmentReportTemplateWorkbook()
+  const weekly = workbook.getWorksheet(SHEET_WEEKLY)
+  const fe = workbook.getWorksheet(SHEET_FE)
+  if (!weekly || !fe) {
+    throw new Error('Treatment report template is missing required worksheets')
+  }
 
-  const weeklyRows: (string | number)[][] = [
-    [TITLE],
-    [sub],
-    [],
-    weeklyHeader,
-    ...weeklyBody,
-  ]
+  fillWeeklySheetFromTreatmentEntries(weekly, monthKey, entries)
+  fillFeSheetFromTreatmentEntries(fe, monthKey, entries)
 
-  const feHeader = buildFeTreatmentReportHeaderRow()
-  const feBody = buildFeTreatmentReportBody(monthKey, entries)
-
-  const feRows: (string | number)[][] = [
-    [TITLE],
-    [sub],
-    [],
-    ['Twin Lakes Well I Arsenic Plant — FE tank (daily)'],
-    [],
-    feHeader,
-    ...feBody,
-  ]
-
-  const wsWeekly = XLSX.utils.aoa_to_sheet(weeklyRows)
-  const wLast = weeklyHeader.length - 1
-  wsWeekly['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: wLast } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: wLast } },
-  ]
-
-  const wsFe = XLSX.utils.aoa_to_sheet(feRows)
-  const fLast = feHeader.length - 1
-  wsFe['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: fLast } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: fLast } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: fLast } },
-  ]
-
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, wsWeekly, 'Weekly FTK')
-  XLSX.utils.book_append_sheet(wb, wsFe, 'FE Inches')
-  XLSX.writeFile(wb, `BPUD-Treatment-Report-${monthKey}.xlsx`)
+  await writeTreatmentReportWorkbook(workbook, `BPUD-Treatment-Report-${monthKey}.xlsx`)
 }

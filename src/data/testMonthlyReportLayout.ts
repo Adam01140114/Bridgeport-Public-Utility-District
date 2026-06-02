@@ -118,6 +118,23 @@ export function fieldKey(rowId: string, field: string): string {
   return `${rowId}:${field}`
 }
 
+/** Keys used in Firestore / form state (`in-skid:as`, etc.) — not the RowTemplate property names. */
+export const ANALYTE_STORAGE_KEYS = {
+  arsenic: 'as',
+  iron: 'fe',
+  chlorine: 'cl2',
+  ph: 'ph',
+  alk: 'alk',
+  hard: 'hard',
+  temp: 'temp',
+} as const
+
+export type AnalyteStorageName = keyof typeof ANALYTE_STORAGE_KEYS
+
+export function analyteStorageKey(rowId: string, analyte: AnalyteStorageName): string {
+  return fieldKey(rowId, ANALYTE_STORAGE_KEYS[analyte])
+}
+
 export function mergesVesselLabelAndArsenic(row: RowTemplate): boolean {
   return row.vesselMerge === true
 }

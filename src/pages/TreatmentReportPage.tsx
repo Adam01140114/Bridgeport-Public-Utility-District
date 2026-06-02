@@ -656,8 +656,9 @@ export function TreatmentReportPage() {
               Export {formatMonthTitle(activeMonthKey)}
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              PDF: weekly FTK table, then a separate Twin Lakes FE table. Excel: two sheets —{' '}
-              <strong>Weekly FTK</strong> and <strong>FE Inches</strong>.
+              PDF: weekly FTK table, then a separate Twin Lakes FE table. Excel: district-formatted
+              workbook with <strong>Weekly Field Test</strong> and <strong>FE Tank (inches)</strong>{' '}
+              sheets (colors, borders, and layout match the official template).
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
@@ -673,8 +674,16 @@ export function TreatmentReportPage() {
               <button
                 type="button"
                 onClick={() => {
-                  downloadTreatmentReportXlsx(activeMonthKey, entries)
-                  setExportOpen(false)
+                  void downloadTreatmentReportXlsx(activeMonthKey, entries)
+                    .then(() => setExportOpen(false))
+                    .catch((err: unknown) => {
+                      console.error(err)
+                      window.alert(
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not export Excel. Please try again.'
+                      )
+                    })
                 }}
                 className="inline-flex min-h-[48px] flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
               >

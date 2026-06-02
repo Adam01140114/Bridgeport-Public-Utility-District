@@ -1,9 +1,11 @@
 import type { CellMode, RowTemplate } from '../data/testMonthlyReportLayout'
 import {
+  ANALYTE_STORAGE_KEYS,
   EFFLUENT_ROWS,
   fieldKey,
   INFLUENT_ROWS,
   mergesVesselLabelAndArsenic,
+  type AnalyteStorageName,
 } from '../data/testMonthlyReportLayout'
 
 export type SheetMerge = { s: { r: number; c: number }; e: { r: number; c: number } }
@@ -14,10 +16,21 @@ function val(values: Record<string, string>, rowId: string, field: string): stri
   return values[fieldKey(rowId, field)] ?? ''
 }
 
+/** RowTemplate uses `arsenic` / `iron` / `chlorine`; stored values use `as` / `fe` / `cl2`. */
+function storageFieldForRowProp(field: keyof RowTemplate): string | null {
+  if (field in ANALYTE_STORAGE_KEYS) {
+    return ANALYTE_STORAGE_KEYS[field as AnalyteStorageName]
+  }
+  if (field === 'alk' || field === 'hard' || field === 'temp') return field
+  return null
+}
+
 function cellVal(values: Record<string, string>, row: RowTemplate, field: keyof RowTemplate): string {
   const mode = row[field] as CellMode
   if (mode === 'blank') return ''
-  return val(values, row.id, field as string)
+  const storageField = storageFieldForRowProp(field)
+  if (!storageField) return ''
+  return val(values, row.id, storageField)
 }
 
 function pushRow(

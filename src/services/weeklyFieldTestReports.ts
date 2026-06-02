@@ -20,6 +20,23 @@ function weekReportDocRef(weekStorageKey: string) {
   return doc(db, COLLECTION, weekStorageKeyToDocId(weekStorageKey))
 }
 
+export async function fetchWeeklyFieldTestValuesForMonth(
+  monthKey: string,
+  weekCount: number,
+): Promise<Map<number, Record<string, string>>> {
+  const out = new Map<number, Record<string, string>>()
+  await Promise.all(
+    Array.from({ length: weekCount }, async (_, weekIndex) => {
+      const key = `${monthKey}|w${weekIndex}`
+      const values = await fetchWeeklyFieldTestValues(key)
+      if (values && Object.keys(values).length > 0) {
+        out.set(weekIndex, values)
+      }
+    }),
+  )
+  return out
+}
+
 export async function fetchWeeklyFieldTestValues(
   weekStorageKey: string,
 ): Promise<Record<string, string> | null> {

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { shiftMonthKey } from '../data/monthKeyNav'
+import {
+  toIsoDateLocal,
+  weekSlicesInMonth,
+  weekStorageKey,
+} from '../data/monthWeekSlices'
 import { formatMonthTitle } from '../data/treatmentReport'
 import {
   type CellMode,
@@ -10,10 +15,11 @@ import {
   mergesVesselLabelAndArsenic,
   type RowTemplate,
 } from '../data/testMonthlyReportLayout'
-import { exportTestMonthlyReportXlsx } from '../excel/testMonthlyReportXlsx'
+import { exportMonthlyFieldTestReportXlsx } from '../excel/testMonthlyReportXlsx'
 import { exportTestMonthlyReportPdf } from '../pdf/testMonthlyReportPdf'
 import {
   fetchWeeklyFieldTestValues,
+  fetchWeeklyFieldTestValuesForMonth,
   persistWeeklyFieldTestValues,
 } from '../services/weeklyFieldTestReports'
 import { backNavOnDarkClass, backNavOnLightClass } from '../ui/backNav'
@@ -139,21 +145,7 @@ function MonthPicker({
   )
 }
 
-type MonthWeekSlice = {
-  weekNumber: number
-  start: Date
-  end: Date
-}
-
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
-/** Local calendar date as `YYYY-MM-DD` for `<input type="date">` (avoids UTC shifts). */
-function toIsoDateLocal(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
 
 /** Map legacy `HHMM` or empty to `HH:mm` for `<input type="time">`. */
 function normalizeHeaderTimeForNative(s: string): string {
@@ -164,38 +156,6 @@ function normalizeHeaderTimeForNative(s: string): string {
     return `${pad.slice(0, 2)}:${pad.slice(2, 4)}`
   }
   return ''
-}
-
-/** At most four weeks per month: 1–7, 8–14, 15–21, then 22–last (remaining days roll into week 4). */
-function weekSlicesInMonth(monthKey: string): MonthWeekSlice[] {
-  const [y, mo] = monthKey.split('-').map(Number)
-  if (!y || !mo) return []
-  const lastDay = new Date(y, mo, 0).getDate()
-  const slices: MonthWeekSlice[] = []
-
-  const pushSlice = (weekNumber: number, startDay: number, endDay: number) => {
-    slices.push({
-      weekNumber,
-      start: new Date(y, mo - 1, startDay),
-      end: new Date(y, mo - 1, endDay),
-    })
-  }
-
-  for (let w = 0; w < 3; w++) {
-    const startDay = w * 7 + 1
-    if (startDay > lastDay) return slices
-    const endDay = Math.min(startDay + 6, lastDay)
-    pushSlice(w + 1, startDay, endDay)
-  }
-
-  const week4Start = 22
-  if (week4Start > lastDay) return slices
-  pushSlice(4, week4Start, lastDay)
-  return slices
-}
-
-function weekStorageKey(monthKey: string, weekIndex: number): string {
-  return `${monthKey}|w${weekIndex}`
 }
 
 function WeekPicker({
@@ -921,14 +881,38 @@ export function TestMonthlyReportPage() {
             <button
               type="button"
               onClick={async () => {
-                if (!activeMonthKey || !currentWeekSlice || !storageKey) return
-                await flushPendingPersist(storageKey)
-                exportTestMonthlyReportXlsx({
-                  monthKey: activeMonthKey,
-                  weekNumber: currentWeekSlice.weekNumber,
-                  monthTitle: formatMonthTitle(activeMonthKey),
-                  values,
-                })
+                if (!activeMonthKey) return
+                if (storageKey) await flushPendingPersist(storageKey)
+                try {
+                  const slices = weekSlicesInMonth(activeMonthKey)
+                  const remote = await fetchWeeklyFieldTestValuesForMonth(
+                    activeMonthKey,
+                    slices.length,
+                  )
+                  const weeks = slices.map((slice, weekIndex) => {
+                    const key = weekStorageKey(activeMonthKey, weekIndex)
+                    const merged = {
+                      ...(remote.get(weekIndex) ?? {}),
+                      ...(valuesByWeekRef.current[key] ?? {}),
+                    }
+                    return {
+                      weekIndex,
+                      values: merged,
+                      fallbackDateIso: toIsoDateLocal(slice.start),
+                    }
+                  })
+                  await exportMonthlyFieldTestReportXlsx({
+                    monthKey: activeMonthKey,
+                    weeks,
+                  })
+                } catch (e) {
+                  console.error(e)
+                  window.alert(
+                    e instanceof Error
+                      ? e.message
+                      : 'Could not export Excel. Please try again.',
+                  )
+                }
               }}
               className="inline-flex min-h-[44px] items-center justify-center rounded-xl border-2 border-emerald-800 bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
             >

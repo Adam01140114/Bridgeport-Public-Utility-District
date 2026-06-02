@@ -46,8 +46,8 @@ export function HomePage() {
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
               Weekly field testing (arsenic, iron, pH, chlorine residual) by influent and effluent
-              skid and vessel rows. Pick a month, add readings, export PDF or Excel in the district
-              worksheet format.
+              skid and vessel rows. Pick a month, enter each week, then export the district monthly
+              Excel workbook (formatted template) or a weekly PDF.
             </p>
           </div>
           <span className="mt-3 inline-flex shrink-0 items-center self-start rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 transition group-hover:bg-emerald-700 sm:mt-1">

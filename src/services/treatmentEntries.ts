@@ -21,6 +21,18 @@ import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
 const COLLECTION = 'treatmentReportEntries'
 
+export async function fetchTreatmentEntriesForMonth(
+  monthKey: string
+): Promise<TreatmentReportEntry[]> {
+  const q = query(
+    collection(db, COLLECTION),
+    where('monthKey', '==', monthKey),
+    orderBy('entryDate', 'asc')
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => docToEntry(d))
+}
+
 export function subscribeTreatmentEntriesForMonth(
   monthKey: string,
   onData: (entries: TreatmentReportEntry[]) => void,
