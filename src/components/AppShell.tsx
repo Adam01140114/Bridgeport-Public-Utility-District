@@ -1,7 +1,29 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import headerLogo from '../../header_logo.png'
 
+/** Toggle with Ctrl+Shift (press the second modifier while both are held). */
+function useAdminNavRevealed(): boolean {
+  const [revealed, setRevealed] = useState(false)
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return
+      if (e.key !== 'Control' && e.key !== 'Shift') return
+      e.preventDefault()
+      setRevealed((v) => !v)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  return revealed
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const adminNavRevealed = useAdminNavRevealed()
+
   return (
     <div className="flex min-h-screen min-h-[100dvh] flex-col">
       <header className="shrink-0 border-b border-white/10 bg-[#071a2e]/80 pt-[env(safe-area-inset-top,0)] backdrop-blur-md">
@@ -19,25 +41,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             />
           </Link>
           <nav className="flex w-full max-w-full flex-wrap items-stretch justify-center gap-2 text-sky-100/90 sm:max-w-none sm:w-auto sm:justify-end sm:items-center sm:gap-3 sm:text-xs">
-            <Link
-              to="/treatment-report"
-              className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
-            >
-              Treatment report
-            </Link>
-            <Link
-              to="/records"
-              className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
-            >
-              All records
-            </Link>
-            <Link
-              to="/admin/settings"
-              className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
-            >
-              Settings
-            </Link>
-            <span className="hidden self-center text-sky-100/40 sm:inline">|</span>
+            {adminNavRevealed ? (
+              <>
+                <Link
+                  to="/treatment-report"
+                  className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
+                >
+                  Treatment report
+                </Link>
+                <Link
+                  to="/records"
+                  className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
+                >
+                  All records
+                </Link>
+                <Link
+                  to="/admin/settings"
+                  className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
+                >
+                  Settings
+                </Link>
+                <span className="hidden self-center text-sky-100/40 sm:inline">|</span>
+              </>
+            ) : null}
             <span className="hidden self-center text-sky-100/70 sm:inline">
               Bridgeport Public Utility District Field Log
             </span>
