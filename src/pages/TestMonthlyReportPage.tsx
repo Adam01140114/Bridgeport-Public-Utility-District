@@ -13,6 +13,7 @@ import {
   fieldKey,
   INFLUENT_ROWS,
   mergesVesselLabelAndArsenic,
+  LOCATION_WEEKLY_NOTES,
   type RowTemplate,
 } from '../data/testMonthlyReportLayout'
 import { exportMonthlyFieldTestReportXlsx } from '../excel/testMonthlyReportXlsx'
@@ -783,7 +784,31 @@ export function TestMonthlyReportPage() {
           <div className="mt-4 border-t border-slate-200 pt-4">
             <div className="rounded-lg border-2 border-slate-800 bg-[#fff7c2] p-4 shadow-inner sm:p-5">
             <h3 className="text-xs font-bold uppercase tracking-wide text-slate-900">Notes</h3>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <p className="mt-1 text-xs text-slate-600">
+              Location notes export to the monthly Excel sheet (one line per location). Gallons
+              treated on the export come from Cain Well and Twin Lakes daily log meter readings.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {LOCATION_WEEKLY_NOTES.map(({ key, label }) => (
+                <div key={key}>
+                  <label
+                    htmlFor={footerFieldId(key.replace(':', '-'))}
+                    className="block text-xs font-semibold text-slate-700"
+                  >
+                    {label}
+                  </label>
+                  <input
+                    id={footerFieldId(key.replace(':', '-'))}
+                    type="text"
+                    value={values[key] ?? ''}
+                    onChange={(e) => onFieldChange(key, e.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-600 bg-white/90 px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-600"
+                    placeholder={`Notes for ${label}…`}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <label htmlFor={footerFieldId('well')} className="block text-xs font-semibold text-slate-700">
                   What well is running?

@@ -1,4 +1,5 @@
 import type { WeekFieldTestBundle } from '../export/weeklyFieldTestToTemplate'
+import { computeMonthlyMeterUsage } from '../services/meterUsage'
 import { fetchTreatmentEntriesForMonth } from '../services/treatmentEntries'
 import {
   fillFeSheetFromTreatmentEntries,
@@ -27,9 +28,11 @@ export async function exportMonthlyFieldTestReportXlsx(params: {
     throw new Error('Treatment report template is missing required worksheets')
   }
 
-  fillWeeklySheetFromFieldTests(weekly, monthKey, weeks)
-
-  const treatmentEntries = await fetchTreatmentEntriesForMonth(monthKey)
+  const [usage, treatmentEntries] = await Promise.all([
+    computeMonthlyMeterUsage(monthKey),
+    fetchTreatmentEntriesForMonth(monthKey),
+  ])
+  fillWeeklySheetFromFieldTests(weekly, monthKey, weeks, usage)
   fillFeSheetFromTreatmentEntries(fe, monthKey, treatmentEntries)
 
   await writeTreatmentReportWorkbook(workbook, `BPUD-Monthly-Treatment-Report-${monthKey}.xlsx`)

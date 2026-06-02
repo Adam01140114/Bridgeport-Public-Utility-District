@@ -7,9 +7,14 @@ import {
 } from '../data/treatmentReport'
 import type { TreatmentCategory } from '../data/treatmentReport'
 import {
+  buildMonthlyNoteLines,
+  WEEKLY_SHEET_SUMMARY,
+} from '../export/monthlyReportNotes'
+import {
   buildWeeklyTemplateCells,
   type WeekFieldTestBundle,
 } from '../export/weeklyFieldTestToTemplate'
+import type { MonthlyMeterUsage } from '../services/meterUsage'
 import { FE_INCHES_EXPORT_LOCATION } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 import templateAssetUrl from '../assets/monthly-treatment-report-template.xlsx?url'
@@ -142,10 +147,43 @@ export function fillWeeklySheetFromTreatmentEntries(
   }
 }
 
+function clearWeeklySummaryCells(ws: ExcelJS.Worksheet): void {
+  ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsCainRow).getCell(WEEKLY_SHEET_SUMMARY.gallonsValueCol).value =
+    null
+  ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsTwinRow).getCell(WEEKLY_SHEET_SUMMARY.gallonsValueCol).value =
+    null
+  for (let i = 0; i < WEEKLY_SHEET_SUMMARY.notesMaxRows; i++) {
+    ws.getRow(WEEKLY_SHEET_SUMMARY.notesFirstRow + i).getCell(1).value = null
+  }
+}
+
+export function fillWeeklySheetSummary(
+  ws: ExcelJS.Worksheet,
+  bundles: WeekFieldTestBundle[],
+  usage: MonthlyMeterUsage
+): void {
+  clearWeeklySummaryCells(ws)
+
+  const col = WEEKLY_SHEET_SUMMARY.gallonsValueCol
+  if (usage.cainGallons !== null) {
+    ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsCainRow).getCell(col).value = usage.cainGallons
+  }
+  if (usage.twinGallons !== null) {
+    ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsTwinRow).getCell(col).value = usage.twinGallons
+  }
+
+  const noteLines = buildMonthlyNoteLines(bundles)
+  noteLines.forEach((line, index) => {
+    if (index >= WEEKLY_SHEET_SUMMARY.notesMaxRows) return
+    ws.getRow(WEEKLY_SHEET_SUMMARY.notesFirstRow + index).getCell(1).value = line
+  })
+}
+
 export function fillWeeklySheetFromFieldTests(
   ws: ExcelJS.Worksheet,
   monthKey: string,
-  bundles: WeekFieldTestBundle[]
+  bundles: WeekFieldTestBundle[],
+  usage: MonthlyMeterUsage
 ): void {
   ws.getCell(WEEKLY_MONTH_CELL).value = formatMonthTitle(monthKey)
   clearWeeklyDataCells(ws)
@@ -157,6 +195,8 @@ export function fillWeeklySheetFromFieldTests(
   for (const { row, col, value } of values) {
     ws.getRow(row).getCell(col).value = coerceExportValue(value)
   }
+
+  fillWeeklySheetSummary(ws, bundles, usage)
 }
 
 function clearFeDayRow(ws: ExcelJS.Worksheet, row: number): void {

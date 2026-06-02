@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -14,6 +15,26 @@ import { db } from '../firebase/config'
 import type { LogEntry } from '../types/entry'
 
 const COLLECTION = 'logEntries'
+
+export async function fetchEntriesForLocation(locationId: string): Promise<LogEntry[]> {
+  const q = query(
+    collection(db, COLLECTION),
+    where('locationId', '==', locationId),
+    orderBy('submittedAt', 'desc')
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => {
+    const data = d.data()
+    return {
+      id: d.id,
+      locationId: data.locationId as string,
+      locationName: data.locationName as string,
+      entryDate: data.entryDate as string,
+      submittedAt: data.submittedAt ?? null,
+      values: (data.values as Record<string, string>) ?? {},
+    }
+  })
+}
 
 export function subscribeEntriesForLocation(
   locationId: string,

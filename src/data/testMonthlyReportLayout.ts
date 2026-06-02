@@ -138,3 +138,11 @@ export function analyteStorageKey(rowId: string, analyte: AnalyteStorageName): s
 export function mergesVesselLabelAndArsenic(row: RowTemplate): boolean {
   return row.vesselMerge === true
 }
+
+/** Weekly location notes on the monthly report export (rows under “Notes:”). */
+export const LOCATION_WEEKLY_NOTES = [
+  { key: 'note:twinWell', label: 'Twin Well' },
+  { key: 'note:twinTreated', label: 'Twin Treated' },
+  { key: 'note:cainWell', label: 'Cain Well' },
+  { key: 'note:cainTreated', label: 'Cain Treated' },
+] as const
