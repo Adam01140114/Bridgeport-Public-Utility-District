@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Generated from repo-root template.xlsx (see npm run sync-template)
+public/template.xlsx
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

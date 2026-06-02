@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "sync-template": "node scripts/sync-template.mjs",
+    "predev": "npm run sync-template",
+    "prebuild": "npm run sync-template",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

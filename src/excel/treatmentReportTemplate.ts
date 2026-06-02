@@ -14,8 +14,6 @@ import {
 import type { MonthlyMeterUsage } from '../services/meterUsage'
 import { FE_INCHES_EXPORT_LOCATION } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
-import templateAssetUrl from '../assets/monthly-treatment-report-template.xlsx?url'
-
 const SHEET_WEEKLY = 'Weekly Field Test'
 const SHEET_FE = 'FE Tank (inches)'
 
@@ -47,11 +45,22 @@ const COL_TWIN_INFLUENT = 4
 const INFLUENT_DATA_COLS = [COL_CAIN_INFLUENT, COL_TWIN_INFLUENT] as const
 const BLACK_FONT_ARGB = 'FF000000'
 
-/** Fetch each export — avoids serving a stale in-memory copy after the template asset is updated. */
+/**
+ * Served from `public/template.xlsx`, synced from repo-root `template.xlsx` on dev/build.
+ * Cache-bust each export so browser never reuses an old copy after you edit the template.
+ */
+function templateFetchUrl(): string {
+  const base = import.meta.env.BASE_URL
+  const path = base.endsWith('/') ? `${base}template.xlsx` : `${base}/template.xlsx`
+  return `${path}?t=${Date.now()}`
+}
+
 function loadTemplateBuffer(): Promise<ArrayBuffer> {
-  return fetch(templateAssetUrl).then((res) => {
+  return fetch(templateFetchUrl()).then((res) => {
     if (!res.ok) {
-      throw new Error(`Failed to load treatment report template (${res.status})`)
+      throw new Error(
+        `Failed to load treatment report template (${res.status}). Ensure template.xlsx exists at the project root and run npm run dev or npm run sync-template.`
+      )
     }
     return res.arrayBuffer()
   })

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { syncTemplatePlugin } from './vite-plugins/syncTemplate'
 
 /** GitHub project pages are served under /repo-name/; GITHUB_REPOSITORY is set in Actions. */
 function basePath(): string {
@@ -9,7 +10,7 @@ function basePath(): string {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [syncTemplatePlugin(), react(), tailwindcss()],
   base: basePath(),
   server: {
     host: true, // listen on 0.0.0.0 so phones on the same Wi‑Fi can connect
