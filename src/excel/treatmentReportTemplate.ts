@@ -15,7 +15,6 @@ import {
   type WeekFieldTestBundle,
 } from '../export/weeklyFieldTestToTemplate'
 import type { MonthlyMeterUsage } from '../services/meterUsage'
-import { applyWeeklyInfluentColumnStyles } from './weeklySheetInfluentStyles'
 import { FE_INCHES_EXPORT_LOCATION } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 import templateAssetUrl from '../assets/monthly-treatment-report-template.xlsx?url'
@@ -45,6 +44,11 @@ const LOCATION_COLUMN: Record<string, number> = {
 }
 
 const WEEKLY_DATA_COLS = [2, 3, 4, 5, 6, 7, 8] as const
+/** Weekly Influent Cain Well #4 / Twin Well #2 — export values must be black text. */
+const COL_CAIN_INFLUENT = 3
+const COL_TWIN_INFLUENT = 4
+const INFLUENT_DATA_COLS = [COL_CAIN_INFLUENT, COL_TWIN_INFLUENT] as const
+const BLACK_FONT_ARGB = 'FF000000'
 
 let templateLoadPromise: Promise<ArrayBuffer> | null = null
 
@@ -111,12 +115,42 @@ function feValueForDay(entries: TreatmentReportEntry[], entryDate: string): stri
   return hit?.value?.trim() ?? ''
 }
 
+function applyBlackFontToInfluentCell(cell: ExcelJS.Cell): void {
+  const prev = cell.font ?? {}
+  cell.font = { ...prev, color: { argb: BLACK_FONT_ARGB } }
+}
+
+function setWeeklyDataCell(
+  ws: ExcelJS.Worksheet,
+  row: number,
+  col: number,
+  value: string | number | Date | null
+): void {
+  const cell = ws.getRow(row).getCell(col)
+  cell.value = value
+  if (col === COL_CAIN_INFLUENT || col === COL_TWIN_INFLUENT) {
+    applyBlackFontToInfluentCell(cell)
+  }
+}
+
+/** Template styles Cain/Twin influent cells with non-black fonts; normalize after fill. */
+function normalizeInfluentColumnFonts(ws: ExcelJS.Worksheet): void {
+  for (const { startRow } of WEEKLY_CATEGORY_BLOCKS) {
+    for (let slot = 0; slot < 4; slot++) {
+      const row = startRow + slot
+      for (const col of INFLUENT_DATA_COLS) {
+        applyBlackFontToInfluentCell(ws.getRow(row).getCell(col))
+      }
+    }
+  }
+}
+
 function clearWeeklyDataCells(ws: ExcelJS.Worksheet): void {
   for (const { startRow } of WEEKLY_CATEGORY_BLOCKS) {
     for (let slot = 0; slot < 4; slot++) {
       const row = startRow + slot
       for (const col of WEEKLY_DATA_COLS) {
-        ws.getRow(row).getCell(col).value = null
+        setWeeklyDataCell(ws, row, col, null)
       }
     }
   }
@@ -136,18 +170,17 @@ export function fillWeeklySheetFromTreatmentEntries(
     for (let slot = 0; slot < 4; slot++) {
       const row = startRow + slot
       const rowDate = weekRowDate(monthKey, slot)
-      ws.getRow(row).getCell(2).value = isoToLocalDate(rowDate)
+      setWeeklyDataCell(ws, row, 2, isoToLocalDate(rowDate))
 
       for (const [location, col] of Object.entries(LOCATION_COLUMN)) {
         if (!showVessels && location.startsWith('Vessel')) continue
         const raw = weeklyCellValue(entries, category, location, slot)
         if (!raw) continue
-        ws.getRow(row).getCell(col).value = coerceExportValue(raw)
+        setWeeklyDataCell(ws, row, col, coerceExportValue(raw))
       }
     }
   }
-
-  applyWeeklyInfluentColumnStyles(ws)
+  normalizeInfluentColumnFonts(ws)
 }
 
 function clearWeeklySummaryCells(ws: ExcelJS.Worksheet): void {
@@ -193,13 +226,13 @@ export function fillWeeklySheetFromFieldTests(
 
   const { values, dates } = buildWeeklyTemplateCells(bundles)
   for (const { row, dateIso } of dates) {
-    ws.getRow(row).getCell(2).value = isoToLocalDate(dateIso)
+    setWeeklyDataCell(ws, row, 2, isoToLocalDate(dateIso))
   }
   for (const { row, col, value } of values) {
-    ws.getRow(row).getCell(col).value = coerceExportValue(value)
+    setWeeklyDataCell(ws, row, col, coerceExportValue(value))
   }
+  normalizeInfluentColumnFonts(ws)
 
-  applyWeeklyInfluentColumnStyles(ws)
   fillWeeklySheetSummary(ws, bundles, usage)
 }
 
