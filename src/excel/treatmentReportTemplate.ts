@@ -199,7 +199,7 @@ export function fillWeeklySheetFromFieldTests(
     ws.getRow(row).getCell(col).value = coerceExportValue(value)
   }
 
-  applyWeeklyInfluentColumnStyles(ws, bundles)
+  applyWeeklyInfluentColumnStyles(ws)
   fillWeeklySheetSummary(ws, bundles, usage)
 }
 

@@ -1,15 +1,13 @@
 import type ExcelJS from 'exceljs'
 import {
-  activeInfluentColumnForBundle,
   WEEKLY_CATEGORY_START_ROWS,
   WEEKLY_INFLUENT_COLUMNS,
-  type WeekFieldTestBundle,
 } from '../export/weeklyFieldTestToTemplate'
 
 const WEEKS_PER_CATEGORY = 4
 
-/** Diagonal hatch for influent cells with no reading / wrong well for that week. */
-const INFLUENT_NA_FILL: ExcelJS.Fill = {
+/** Hatch pattern for empty Cain / Twin influent cells only. */
+const INFLUENT_EMPTY_FILL: ExcelJS.Fill = {
   type: 'pattern',
   pattern: 'lightTrellis',
   fgColor: { argb: 'FFB8B8B8' },
@@ -22,55 +20,25 @@ function cellHasValue(value: ExcelJS.CellValue): boolean {
   return value !== null && value !== undefined && value !== ''
 }
 
-function applyBlackFont(cell: ExcelJS.Cell): void {
-  const font = cell.font ?? {}
-  cell.font = {
-    ...font,
-    color: BLACK_FONT_COLOR,
-  }
-}
-
-function applyHashedEmpty(cell: ExcelJS.Cell): void {
-  cell.value = null
-  cell.fill = INFLUENT_NA_FILL
-  applyBlackFont(cell)
-}
-
 /**
- * Cain / Twin influent columns: black text when populated; hatched when empty or not
- * the well used that week (`footer:well` when bundles provided).
+ * Cain / Twin influent columns only: black text when there is a value (keep row
+ * band color); light hatch when the cell is empty. No other columns are changed.
  */
-export function applyWeeklyInfluentColumnStyles(
-  ws: ExcelJS.Worksheet,
-  bundles?: WeekFieldTestBundle[]
-): void {
-  const bundleByWeek = new Map(bundles?.map((b) => [b.weekIndex, b]) ?? [])
-
+export function applyWeeklyInfluentColumnStyles(ws: ExcelJS.Worksheet): void {
   for (const startRow of WEEKLY_CATEGORY_START_ROWS) {
     for (let slot = 0; slot < WEEKS_PER_CATEGORY; slot++) {
       const row = startRow + slot
-      const bundle = bundleByWeek.get(slot)
-      const activeCol = bundle ? activeInfluentColumnForBundle(bundle) : null
 
       for (const col of WEEKLY_INFLUENT_COLUMNS) {
         const cell = ws.getRow(row).getCell(col)
-        const hasValue = cellHasValue(cell.value)
 
-        if (bundles) {
-          if (activeCol === null) {
-            applyHashedEmpty(cell)
-            continue
-          }
-          if (col !== activeCol) {
-            applyHashedEmpty(cell)
-            continue
-          }
-        }
-
-        if (hasValue) {
-          applyBlackFont(cell)
+        if (cellHasValue(cell.value)) {
+          const font = cell.font ?? {}
+          cell.font = { ...font, color: BLACK_FONT_COLOR }
         } else {
-          applyHashedEmpty(cell)
+          cell.fill = INFLUENT_EMPTY_FILL
+          const font = cell.font ?? {}
+          cell.font = { ...font, color: BLACK_FONT_COLOR }
         }
       }
     }
