@@ -14,6 +14,7 @@ import {
 import type { MonthlyMeterUsage } from '../services/meterUsage'
 import { FE_INCHES_EXPORT_LOCATION } from '../export/treatmentReportGrid'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
+
 const SHEET_WEEKLY = 'Weekly Field Test'
 const SHEET_FE = 'FE Tank (inches)'
 
@@ -38,16 +39,13 @@ const LOCATION_COLUMN: Record<string, number> = {
   'Vessel #3 Eff.': 8,
 }
 
-const WEEKLY_DATA_COLS = [2, 3, 4, 5, 6, 7, 8] as const
-/** Weekly Influent Cain Well #4 / Twin Well #2 — export values must be black text. */
 const COL_CAIN_INFLUENT = 3
 const COL_TWIN_INFLUENT = 4
-const INFLUENT_DATA_COLS = [COL_CAIN_INFLUENT, COL_TWIN_INFLUENT] as const
 const BLACK_FONT_ARGB = 'FF000000'
 
 /**
- * Served from `public/template.xlsx`, synced from repo-root `template.xlsx` on dev/build.
- * Cache-bust each export so browser never reuses an old copy after you edit the template.
+ * Load repo `template.xlsx` (via `public/template.xlsx`, synced on build; live root file in dev).
+ * Cache-bust every export so the browser never reuses an old workbook.
  */
 function templateFetchUrl(): string {
   const base = import.meta.env.BASE_URL
@@ -56,7 +54,7 @@ function templateFetchUrl(): string {
 }
 
 function loadTemplateBuffer(): Promise<ArrayBuffer> {
-  return fetch(templateFetchUrl()).then((res) => {
+  return fetch(templateFetchUrl(), { cache: 'no-store' }).then((res) => {
     if (!res.ok) {
       throw new Error(
         `Failed to load treatment report template (${res.status}). Ensure template.xlsx exists at the project root and run npm run dev or npm run sync-template.`
@@ -70,6 +68,7 @@ export async function loadTreatmentReportTemplateWorkbook(): Promise<ExcelJS.Wor
   const buffer = await loadTemplateBuffer()
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(buffer)
+
   const weekly = workbook.getWorksheet(SHEET_WEEKLY)
   const fe = workbook.getWorksheet(SHEET_FE)
   if (!weekly || !fe) {
@@ -117,44 +116,17 @@ function feValueForDay(entries: TreatmentReportEntry[], entryDate: string): stri
   return hit?.value?.trim() ?? ''
 }
 
-function applyBlackFontToInfluentCell(cell: ExcelJS.Cell): void {
-  const prev = cell.font ?? {}
-  cell.font = { ...prev, color: { argb: BLACK_FONT_ARGB } }
-}
-
-function setWeeklyDataCell(
+/** Only set `.value` — never clear or restyle static template regions (notes, labels, etc.). */
+function writeWeeklyValue(
   ws: ExcelJS.Worksheet,
   row: number,
   col: number,
-  value: string | number | Date | null
+  value: string | number | Date
 ): void {
   const cell = ws.getRow(row).getCell(col)
   cell.value = value
   if (col === COL_CAIN_INFLUENT || col === COL_TWIN_INFLUENT) {
-    applyBlackFontToInfluentCell(cell)
-  }
-}
-
-/** Template styles Cain/Twin influent cells with non-black fonts; normalize after fill. */
-function normalizeInfluentColumnFonts(ws: ExcelJS.Worksheet): void {
-  for (const { startRow } of WEEKLY_CATEGORY_BLOCKS) {
-    for (let slot = 0; slot < 4; slot++) {
-      const row = startRow + slot
-      for (const col of INFLUENT_DATA_COLS) {
-        applyBlackFontToInfluentCell(ws.getRow(row).getCell(col))
-      }
-    }
-  }
-}
-
-function clearWeeklyDataCells(ws: ExcelJS.Worksheet): void {
-  for (const { startRow } of WEEKLY_CATEGORY_BLOCKS) {
-    for (let slot = 0; slot < 4; slot++) {
-      const row = startRow + slot
-      for (const col of WEEKLY_DATA_COLS) {
-        setWeeklyDataCell(ws, row, col, null)
-      }
-    }
+    cell.font = { ...(cell.font ?? {}), color: { argb: BLACK_FONT_ARGB } }
   }
 }
 
@@ -164,37 +136,25 @@ export function fillWeeklySheetFromTreatmentEntries(
   entries: TreatmentReportEntry[]
 ): void {
   ws.getCell(WEEKLY_MONTH_CELL).value = formatMonthTitle(monthKey)
-  clearWeeklyDataCells(ws)
 
   for (const { category, startRow } of WEEKLY_CATEGORY_BLOCKS) {
     const showVessels = vesselColumnsForCategory(category)
 
     for (let slot = 0; slot < 4; slot++) {
       const row = startRow + slot
-      const rowDate = weekRowDate(monthKey, slot)
-      setWeeklyDataCell(ws, row, 2, isoToLocalDate(rowDate))
+      writeWeeklyValue(ws, row, 2, isoToLocalDate(weekRowDate(monthKey, slot)))
 
       for (const [location, col] of Object.entries(LOCATION_COLUMN)) {
         if (!showVessels && location.startsWith('Vessel')) continue
         const raw = weeklyCellValue(entries, category, location, slot)
         if (!raw) continue
-        setWeeklyDataCell(ws, row, col, coerceExportValue(raw))
+        writeWeeklyValue(ws, row, col, coerceExportValue(raw))
       }
     }
   }
-  normalizeInfluentColumnFonts(ws)
-}
-
-function clearWeeklyGallonCells(ws: ExcelJS.Worksheet): void {
-  ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsCainRow).getCell(WEEKLY_SHEET_SUMMARY.gallonsValueCol).value =
-    null
-  ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsTwinRow).getCell(WEEKLY_SHEET_SUMMARY.gallonsValueCol).value =
-    null
 }
 
 export function fillWeeklySheetSummary(ws: ExcelJS.Worksheet, usage: MonthlyMeterUsage): void {
-  clearWeeklyGallonCells(ws)
-
   const col = WEEKLY_SHEET_SUMMARY.gallonsValueCol
   if (usage.cainGallons !== null) {
     ws.getRow(WEEKLY_SHEET_SUMMARY.gallonsCainRow).getCell(col).value = usage.cainGallons
@@ -211,16 +171,14 @@ export function fillWeeklySheetFromFieldTests(
   usage: MonthlyMeterUsage
 ): void {
   ws.getCell(WEEKLY_MONTH_CELL).value = formatMonthTitle(monthKey)
-  clearWeeklyDataCells(ws)
 
   const { values, dates } = buildWeeklyTemplateCells(bundles)
   for (const { row, dateIso } of dates) {
-    setWeeklyDataCell(ws, row, 2, isoToLocalDate(dateIso))
+    writeWeeklyValue(ws, row, 2, isoToLocalDate(dateIso))
   }
   for (const { row, col, value } of values) {
-    setWeeklyDataCell(ws, row, col, coerceExportValue(value))
+    writeWeeklyValue(ws, row, col, coerceExportValue(value))
   }
-  normalizeInfluentColumnFonts(ws)
 
   fillWeeklySheetSummary(ws, usage)
 }
