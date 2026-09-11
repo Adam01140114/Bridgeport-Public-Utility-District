@@ -7,9 +7,15 @@ export const WEEKLY_SHEET_SUMMARY = {
   gallonsCainRow: 22,
   gallonsTwinRow: 23,
   gallonsValueCol: 3,
-  /** Empty template row directly under the gallons rows; styled like them at export time. */
-  backwashesRow: 24,
-  backwashesLabel: 'Number of Backwashes this month:',
+  /**
+   * Backwash box requested by the district: same row as the Cain gallons line, label across
+   * E:G and the count in H (empty in the template; styled like the gallons cells at export).
+   */
+  backwashesRow: 22,
+  backwashesLabelStartCol: 5,
+  backwashesLabelEndCol: 7,
+  backwashesValueCol: 8,
+  backwashesLabel: 'Number of backwashes during this month:',
 } as const
 
 /** DDW asked for a label saying the sheet holds field-kit (not lab) results. Row 3 is blank in the template. */

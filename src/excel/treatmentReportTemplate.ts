@@ -183,17 +183,31 @@ export function fillWeeklySheetFieldKitLabel(ws: ExcelJS.Worksheet): void {
   ws.mergeCells(row, firstCol, row, lastCol)
 }
 
-/** "Number of Backwashes this month" row, styled like the gallons rows directly above it. */
+/** "Number of backwashes during this month" box beside the gallons rows, styled like them. */
 export function fillWeeklySheetBackwashes(ws: ExcelJS.Worksheet, count: number): void {
-  const { backwashesRow, gallonsTwinRow, gallonsValueCol, backwashesLabel } = WEEKLY_SHEET_SUMMARY
-  const src = ws.getRow(gallonsTwinRow)
-  const dst = ws.getRow(backwashesRow)
-  for (let col = 1; col <= gallonsValueCol; col++) {
-    dst.getCell(col).style = cloneStyle(src.getCell(col))
-  }
-  dst.getCell(1).value = backwashesLabel
-  dst.getCell(2).value = null
-  dst.getCell(gallonsValueCol).value = count
+  const {
+    backwashesRow,
+    backwashesLabelStartCol,
+    backwashesLabelEndCol,
+    backwashesValueCol,
+    backwashesLabel,
+    gallonsCainRow,
+    gallonsValueCol,
+  } = WEEKLY_SHEET_SUMMARY
+  const src = ws.getRow(gallonsCainRow)
+  const row = ws.getRow(backwashesRow)
+
+  const label = row.getCell(backwashesLabelStartCol)
+  label.style = cloneStyle(src.getCell(1))
+  label.value = backwashesLabel
+  label.alignment = { horizontal: 'left', vertical: 'middle' }
+  ws.mergeCells(backwashesRow, backwashesLabelStartCol, backwashesRow, backwashesLabelEndCol)
+  const edge = { style: 'thin' as const }
+  label.border = { left: edge, right: edge, top: edge, bottom: edge }
+
+  const value = row.getCell(backwashesValueCol)
+  value.style = cloneStyle(src.getCell(gallonsValueCol))
+  value.value = count
 }
 
 /**
