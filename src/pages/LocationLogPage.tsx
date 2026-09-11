@@ -17,8 +17,31 @@ import type { LogEntry } from '../types/entry'
 import { backNavOnDarkClass, backNavOnLightClass } from '../ui/backNav'
 import type { TreatmentReportEntry } from '../types/treatmentEntry'
 
-function emptyStateForFields(fields: FieldDef[]): Record<string, string> {
-  return Object.fromEntries(fields.map((f) => [f.key, '']))
+function todayIsoLocal(now: Date): string {
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function nowTimeLocal(now: Date): string {
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
+
+/**
+ * Fresh form state: every field blank except the date (today) and the first time field
+ * (right now). Operators can still change either before saving.
+ */
+function initialStateForFields(fields: FieldDef[]): Record<string, string> {
+  const now = new Date()
+  const firstTimeKey = fields.find((f) => f.type === 'time')?.key
+  return Object.fromEntries(
+    fields.map((f) => {
+      if (f.key === 'date' && f.type === 'date') return [f.key, todayIsoLocal(now)]
+      if (f.key === firstTimeKey) return [f.key, nowTimeLocal(now)]
+      return [f.key, '']
+    }),
+  )
 }
 
 function openNativePicker(el: HTMLInputElement) {
@@ -324,7 +347,7 @@ export function LocationLogPage() {
 
   useEffect(() => {
     if (!location) return
-    setValues(emptyStateForFields(location.fields))
+    setValues(initialStateForFields(location.fields))
   }, [location])
 
   useEffect(() => {
@@ -476,7 +499,7 @@ export function LocationLogPage() {
         })
       }
 
-      setValues(emptyStateForFields(location.fields))
+      setValues(initialStateForFields(location.fields))
       setSaveMessage('Entry saved.')
       window.setTimeout(() => setSaveMessage(null), 4000)
     } catch (err) {
@@ -535,7 +558,8 @@ export function LocationLogPage() {
       <section className="rounded-2xl bg-white/95 p-5 shadow-xl shadow-black/15 ring-1 ring-white/60 sm:p-8">
         <h2 className="text-lg font-semibold text-bpud-deep sm:text-xl">New entry</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:mt-1">
-          Fill in today&apos;s readings. Your name and the date are required; everything else is
+          Fill in today&apos;s readings. Date and time start at right now; adjust them if you are logging
+          for another time. Your name and the date are required; everything else is
           optional unless your procedure says otherwise. The exact time you tap Save is recorded
           automatically for the work log.
         </p>
