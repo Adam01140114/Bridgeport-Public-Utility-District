@@ -192,7 +192,7 @@ function MonthReportPanel({
         </span>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Printed on the Excel report under the gallons rows and in the Observations box.
+        Printed on the Excel report beside the gallons rows and in the Notes box.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">

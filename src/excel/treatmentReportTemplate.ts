@@ -225,7 +225,7 @@ export function fillWeeklySheetNotesLabel(ws: ExcelJS.Worksheet): void {
 }
 
 /**
- * Write note lines into the Observations box (one line per row, D:H merged). If there are more
+ * Write note lines into the Notes box (one line per row, D:H merged). If there are more
  * lines than template rows, a middle row of the box is duplicated so the borders stay intact
  * and the static sample-point IDs in column A keep their order.
  */

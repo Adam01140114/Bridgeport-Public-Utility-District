@@ -10,7 +10,7 @@ import { db } from '../firebase/config'
 const COLLECTION = 'weeklyFieldTestReports'
 
 export type MonthlyReportMeta = {
-  /** Free-text notes printed in the Observations box of the monthly Excel report. */
+  /** Free-text notes printed in the Notes box of the monthly Excel report. */
   notes: string
   /** Optional manual backwash count; blank means "use the total from the daily logs". */
   backwashesOverride: string

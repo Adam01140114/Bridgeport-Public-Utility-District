@@ -78,7 +78,7 @@ function nonEmptyLines(text: string): string[] {
 /**
  * Notes for the monthly report: month-level notes first, then each week's
  * "Additional notes" from the weekly field-test form, prefixed with the week and date.
- * Lines are pre-wrapped so each fits one row of the Observations box.
+ * Lines are pre-wrapped so each fits one row of the Notes box.
  */
 export function buildMonthlyReportNoteLines(params: {
   monthNotes: string
