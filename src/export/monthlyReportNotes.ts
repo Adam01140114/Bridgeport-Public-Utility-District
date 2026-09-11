@@ -26,15 +26,20 @@ export const WEEKLY_SHEET_FIELD_KIT_LABEL = {
   text: 'Field Kit Data',
 } as const
 
-/** The bordered "Observations:" box (D26:H29) that the app fills with report notes. */
+/**
+ * The bordered box at D25:H29 that the app fills with report notes. The template labels it
+ * "Observations:"; the district asked for it to read "Notes:", so the export relabels it.
+ */
 export const WEEKLY_SHEET_NOTES = {
   labelRow: 25,
+  labelCol: 4,
+  label: 'Notes:',
   firstRow: 26,
   lastRow: 29,
   firstCol: 4,
   lastCol: 8,
-  /** Merged D:H is roughly this wide at the template's 12pt font. */
-  maxCharsPerLine: 68,
+  /** Merged D:H holds about this many characters at the template's 12pt font (checked in Excel). */
+  maxCharsPerLine: 56,
 } as const
 
 /** Same label used on the in-app form and the weekly PDF. */

@@ -200,14 +200,28 @@ export function fillWeeklySheetBackwashes(ws: ExcelJS.Worksheet, count: number):
   const label = row.getCell(backwashesLabelStartCol)
   label.style = cloneStyle(src.getCell(1))
   label.value = backwashesLabel
-  label.alignment = { horizontal: 'left', vertical: 'middle' }
+  // The merged E:G box is narrower than the label at 12pt, so wrap onto two lines and give the
+  // row enough height for both (default rows are ~15pt).
+  label.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
   ws.mergeCells(backwashesRow, backwashesLabelStartCol, backwashesRow, backwashesLabelEndCol)
   const edge = { style: 'thin' as const }
   label.border = { left: edge, right: edge, top: edge, bottom: edge }
+  row.height = Math.max(row.height ?? 0, 33)
+  for (let col = 1; col <= gallonsValueCol; col++) {
+    const cell = row.getCell(col)
+    cell.alignment = { ...(cell.alignment ?? {}), vertical: 'middle' }
+  }
 
   const value = row.getCell(backwashesValueCol)
   value.style = cloneStyle(src.getCell(gallonsValueCol))
+  value.alignment = { ...(value.alignment ?? {}), vertical: 'middle' }
   value.value = count
+}
+
+/** The district wants the box labeled "Notes:" rather than the template's "Observations:". */
+export function fillWeeklySheetNotesLabel(ws: ExcelJS.Worksheet): void {
+  const { labelRow, labelCol, label } = WEEKLY_SHEET_NOTES
+  ws.getRow(labelRow).getCell(labelCol).value = label
 }
 
 /**
@@ -271,6 +285,7 @@ export function fillWeeklySheetFromFieldTests(
 
   fillWeeklySheetSummary(ws, usage)
   fillWeeklySheetBackwashes(ws, extras.backwashCount)
+  fillWeeklySheetNotesLabel(ws)
   // Notes last: it may insert rows, and everything above it uses fixed row numbers.
   fillWeeklySheetNotes(ws, extras.noteLines)
 }
