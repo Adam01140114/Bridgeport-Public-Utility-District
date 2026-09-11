@@ -240,6 +240,24 @@ function MonthReportPanel({
   )
 }
 
+/**
+ * A week opened with no date and no time yet gets today's date (or the first day of the week
+ * when today is outside it) and the current time. Weeks that already have either are left alone.
+ */
+function withHeaderDefaults(
+  values: Record<string, string>,
+  bounds: { min: string; max: string },
+): Record<string, string> {
+  const hasDate = ISO_DATE_RE.test(values['header:date'] ?? '')
+  const hasTime = (values['header:time'] ?? '').trim() !== ''
+  if (hasDate || hasTime) return values
+  const now = new Date()
+  const today = toIsoDateLocal(now)
+  const date = today >= bounds.min && today <= bounds.max ? today : bounds.min
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return { ...values, 'header:date': date, 'header:time': time }
+}
+
 function WeekPicker({
   monthKey,
   onSelectWeek,
@@ -768,15 +786,17 @@ export function TestMonthlyReportPage() {
       try {
         const remote = await fetchWeeklyFieldTestValues(storageKey)
         if (cancelled) return
-        if (remote && Object.keys(remote).length > 0) {
-          setValuesByWeek((prev) => {
-            const existing = prev[storageKey]
-            if (existing && Object.keys(existing).length > 0) return prev
-            const next = { ...prev, [storageKey]: remote }
-            valuesByWeekRef.current = next
-            return next
-          })
-        }
+        setValuesByWeek((prev) => {
+          const existing = prev[storageKey]
+          const base =
+            existing && Object.keys(existing).length > 0 ? existing : (remote ?? {})
+          // Prefill date/time for a week that has neither; saved with the next edit.
+          const withDefaults = withHeaderDefaults(base, weekDateIsoBounds)
+          if (withDefaults === existing) return prev
+          const next = { ...prev, [storageKey]: withDefaults }
+          valuesByWeekRef.current = next
+          return next
+        })
       } catch (e) {
         if (!cancelled) {
           setFirestoreError(e instanceof Error ? e.message : 'Could not load saved data.')
@@ -786,7 +806,7 @@ export function TestMonthlyReportPage() {
     return () => {
       cancelled = true
     }
-  }, [storageKey, phase])
+  }, [storageKey, phase, weekDateIsoBounds])
 
   useEffect(() => {
     return () => {

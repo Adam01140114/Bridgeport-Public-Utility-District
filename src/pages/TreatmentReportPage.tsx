@@ -11,6 +11,7 @@ import {
   type TreatmentCategory,
   type TreatmentLocation,
 } from '../data/treatmentReport'
+import { toIsoDateLocal } from '../data/monthWeekSlices'
 import { downloadTreatmentReportXlsx } from '../excel/treatmentReportXlsx'
 import { formatShortDate } from '../export/entryFormatting'
 import { openTreatmentReportPdf } from '../pdf/treatmentReportPdf'
@@ -175,7 +176,10 @@ export function TreatmentReportPage() {
 
   const openAddModal = useCallback((prefillDate?: string) => {
     if (!activeMonthKey) return
-    setFormDate(prefillDate ?? `${activeMonthKey}-01`)
+    // Default to today when it falls in the open month, otherwise the 1st of that month.
+    const today = toIsoDateLocal(new Date())
+    const todayInMonth = activeMonthKey ? today.startsWith(activeMonthKey) : false
+    setFormDate(prefillDate ?? (todayInMonth ? today : `${activeMonthKey}-01`))
     setFormCategory('')
     setFormLocation('')
     setFormValue('')
