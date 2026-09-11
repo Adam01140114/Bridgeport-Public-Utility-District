@@ -2,48 +2,35 @@ import type { WeekFieldTestBundle } from './weeklyFieldTestToTemplate'
 import { weekDateIso } from './weeklyFieldTestToTemplate'
 import { formatTreatmentReportShortMdy } from './treatmentReportGrid'
 
-/** Fixed cells on the template "Weekly Field Test" sheet (see template.xlsx at the repo root). */
+/**
+ * Fixed cells on the template "Weekly Field Test" sheet (template.xlsx at the repo root, which
+ * is the district's own "Monthly Treatment Field Kit Data Report" layout). The title, the
+ * "Number of backwashes during this month:" label, and the "Notes:" label are part of the
+ * template; the export only writes values.
+ */
 export const WEEKLY_SHEET_SUMMARY = {
   gallonsCainRow: 22,
   gallonsTwinRow: 23,
   gallonsValueCol: 3,
-  /**
-   * Backwash box requested by the district: same row as the Cain gallons line, label across
-   * E:G and the count in H (empty in the template; styled like the gallons cells at export).
-   */
+  /** The count goes in the tan cell to the right of the district's backwash label (E22:H22). */
   backwashesRow: 22,
-  backwashesLabelStartCol: 5,
-  backwashesLabelEndCol: 7,
-  backwashesValueCol: 8,
-  backwashesLabel: 'Number of backwashes during this month:',
+  backwashesValueCol: 9,
 } as const
 
-/** DDW asked for a label saying the sheet holds field-kit (not lab) results. Row 3 is blank in the template. */
-export const WEEKLY_SHEET_FIELD_KIT_LABEL = {
-  row: 3,
-  firstCol: 1,
-  lastCol: 8,
-  text: 'Field Kit Data',
-} as const
-
-/**
- * The bordered box at D25:H29 that the app fills with report notes. The template labels it
- * "Observations:"; the district asked for it to read "Notes:", so the export relabels it.
- */
+/** The bordered "Notes:" box: label in D25, note lines in D26:H29 (bottom edge on row 30). */
 export const WEEKLY_SHEET_NOTES = {
-  labelRow: 25,
-  labelCol: 4,
-  label: 'Notes:',
   firstRow: 26,
   lastRow: 29,
   firstCol: 4,
   lastCol: 8,
   /** Merged D:H holds about this many characters at the template's 12pt font (checked in Excel). */
   maxCharsPerLine: 56,
+  /** Template row height in points; used to grow the box when there are more lines than rows. */
+  lineHeightPt: 15.6,
 } as const
 
-/** Same label used on the in-app form and the weekly PDF. */
-export const FIELD_KIT_DATA_LABEL = WEEKLY_SHEET_FIELD_KIT_LABEL.text
+/** Label shown on the in-app weekly form and the weekly PDF (the Excel title already carries it). */
+export const FIELD_KIT_DATA_LABEL = 'Field Kit Data'
 
 function wrapLine(line: string, max: number): string[] {
   const words = line.split(/\s+/).filter(Boolean)

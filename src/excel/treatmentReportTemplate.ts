@@ -6,11 +6,7 @@ import {
   weekRowDate,
 } from '../data/treatmentReport'
 import type { TreatmentCategory } from '../data/treatmentReport'
-import {
-  WEEKLY_SHEET_FIELD_KIT_LABEL,
-  WEEKLY_SHEET_NOTES,
-  WEEKLY_SHEET_SUMMARY,
-} from '../export/monthlyReportNotes'
+import { WEEKLY_SHEET_NOTES, WEEKLY_SHEET_SUMMARY } from '../export/monthlyReportNotes'
 import {
   buildWeeklyTemplateCells,
   type WeekFieldTestBundle,
@@ -168,101 +164,43 @@ export function fillWeeklySheetSummary(ws: ExcelJS.Worksheet, usage: MonthlyMete
   }
 }
 
-/** Deep copy so later edits to one cell never leak into the template cell it was cloned from. */
-function cloneStyle(src: ExcelJS.Cell): Partial<ExcelJS.Style> {
-  return JSON.parse(JSON.stringify(src.style ?? {})) as Partial<ExcelJS.Style>
-}
-
-/** "Field Kit Data" banner on the blank row between the month line and the table header. */
-export function fillWeeklySheetFieldKitLabel(ws: ExcelJS.Worksheet): void {
-  const { row, firstCol, lastCol, text } = WEEKLY_SHEET_FIELD_KIT_LABEL
-  const cell = ws.getRow(row).getCell(firstCol)
-  cell.value = text
-  cell.font = { bold: true, size: 12, color: { argb: BLACK_FONT_ARGB } }
-  cell.alignment = { horizontal: 'center', vertical: 'middle' }
-  ws.mergeCells(row, firstCol, row, lastCol)
-}
-
-/** "Number of backwashes during this month" box beside the gallons rows, styled like them. */
+/** Monthly backwash count in the district's pre-labeled, pre-styled cell beside the gallons rows. */
 export function fillWeeklySheetBackwashes(ws: ExcelJS.Worksheet, count: number): void {
-  const {
-    backwashesRow,
-    backwashesLabelStartCol,
-    backwashesLabelEndCol,
-    backwashesValueCol,
-    backwashesLabel,
-    gallonsCainRow,
-    gallonsValueCol,
-  } = WEEKLY_SHEET_SUMMARY
-  const src = ws.getRow(gallonsCainRow)
-  const row = ws.getRow(backwashesRow)
-
-  const label = row.getCell(backwashesLabelStartCol)
-  label.style = cloneStyle(src.getCell(1))
-  label.value = backwashesLabel
-  // The merged E:G box is narrower than the label at 12pt, so wrap onto two lines and give the
-  // row enough height for both (default rows are ~15pt).
-  label.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
-  ws.mergeCells(backwashesRow, backwashesLabelStartCol, backwashesRow, backwashesLabelEndCol)
-  const edge = { style: 'thin' as const }
-  label.border = { left: edge, right: edge, top: edge, bottom: edge }
-  row.height = Math.max(row.height ?? 0, 33)
-  for (let col = 1; col <= gallonsValueCol; col++) {
-    const cell = row.getCell(col)
-    cell.alignment = { ...(cell.alignment ?? {}), vertical: 'middle' }
-  }
-
-  const value = row.getCell(backwashesValueCol)
-  value.style = cloneStyle(src.getCell(gallonsValueCol))
-  value.alignment = { ...(value.alignment ?? {}), vertical: 'middle' }
-  value.value = count
-}
-
-/** The district wants the box labeled "Notes:" rather than the template's "Observations:". */
-export function fillWeeklySheetNotesLabel(ws: ExcelJS.Worksheet): void {
-  const { labelRow, labelCol, label } = WEEKLY_SHEET_NOTES
-  ws.getRow(labelRow).getCell(labelCol).value = label
+  const { backwashesRow, backwashesValueCol } = WEEKLY_SHEET_SUMMARY
+  ws.getRow(backwashesRow).getCell(backwashesValueCol).value = count
 }
 
 /**
- * Write note lines into the Notes box (one line per row, D:H merged). If there are more
- * lines than template rows, a middle row of the box is duplicated so the borders stay intact
- * and the static sample-point IDs in column A keep their order.
+ * Write the note lines into the "Notes:" box as one merged block (D26:H29). The lines are
+ * pre-wrapped to the box width; when there are more lines than rows, the box rows are made
+ * taller so nothing is inserted and the sample-point list beside it keeps its shape.
  */
 export function fillWeeklySheetNotes(ws: ExcelJS.Worksheet, lines: string[]): void {
   if (lines.length === 0) return
-  const { firstRow, lastRow, firstCol, lastCol } = WEEKLY_SHEET_NOTES
-  const templateRows = lastRow - firstRow + 1
-  const extra = Math.max(0, lines.length - templateRows)
+  const { firstRow, lastRow, firstCol, lastCol, lineHeightPt } = WEEKLY_SHEET_NOTES
+  const boxRows = lastRow - firstRow + 1
 
-  if (extra > 0) {
-    const staticColumnA = Array.from({ length: templateRows }, (_, i) =>
-      ws.getRow(firstRow + i).getCell(1).value,
-    )
-    const middleRow = lastRow - 1
-    ws.duplicateRow(middleRow, extra, true)
-    const newLastRow = lastRow + extra
-    for (let row = firstRow; row <= newLastRow; row++) {
-      ws.getRow(row).getCell(1).value = staticColumnA[row - firstRow] ?? null
-    }
+  const cell = ws.getRow(firstRow).getCell(firstCol)
+  // Merging copies the first cell's style across the range, which would drop the box's right
+  // edge (kept on the last column); carry both outer edges onto the merged cell.
+  const leftEdge = cell.border?.left
+  const rightEdge = ws.getRow(firstRow).getCell(lastCol).border?.right
+  cell.value = lines.join('\n')
+  cell.font = { size: 12, color: { argb: BLACK_FONT_ARGB } }
+  cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true }
+  ws.mergeCells(firstRow, firstCol, lastRow, lastCol)
+  cell.border = {
+    ...(leftEdge ? { left: leftEdge } : {}),
+    ...(rightEdge ? { right: rightEdge } : {}),
   }
 
-  lines.forEach((line, i) => {
-    const row = firstRow + i
-    const cell = ws.getRow(row).getCell(firstCol)
-    // Merging copies the first cell's style across the range, which would drop the box's
-    // right edge (kept on the last column); carry both outer edges onto the merged cell.
-    const leftEdge = cell.border?.left
-    const rightEdge = ws.getRow(row).getCell(lastCol).border?.right
-    cell.value = line
-    cell.font = { size: 12, color: { argb: BLACK_FONT_ARGB } }
-    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: false }
-    ws.mergeCells(row, firstCol, row, lastCol)
-    cell.border = {
-      ...(leftEdge ? { left: leftEdge } : {}),
-      ...(rightEdge ? { right: rightEdge } : {}),
+  // Excel does not auto-fit merged cells, so size the rows to the line count ourselves.
+  const linesPerRow = Math.ceil(lines.length / boxRows)
+  if (linesPerRow > 1) {
+    for (let row = firstRow; row <= lastRow; row++) {
+      ws.getRow(row).height = linesPerRow * lineHeightPt
     }
-  })
+  }
 }
 
 export function fillWeeklySheetFromFieldTests(
@@ -273,7 +211,6 @@ export function fillWeeklySheetFromFieldTests(
   extras: { backwashCount: number; noteLines: string[] },
 ): void {
   ws.getCell(WEEKLY_MONTH_CELL).value = formatMonthTitle(monthKey)
-  fillWeeklySheetFieldKitLabel(ws)
 
   const { values, dates } = buildWeeklyTemplateCells(bundles)
   for (const { row, dateIso } of dates) {
@@ -285,8 +222,6 @@ export function fillWeeklySheetFromFieldTests(
 
   fillWeeklySheetSummary(ws, usage)
   fillWeeklySheetBackwashes(ws, extras.backwashCount)
-  fillWeeklySheetNotesLabel(ws)
-  // Notes last: it may insert rows, and everything above it uses fixed row numbers.
   fillWeeklySheetNotes(ws, extras.noteLines)
 }
 
