@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import { autoTable } from 'jspdf-autotable'
 import { formatMonthTitle } from '../data/treatmentReport'
+import { FIELD_KIT_DATA_LABEL } from '../export/monthlyReportNotes'
 import { buildSignOffLines, buildTestMonthlyReportGrid } from '../export/testMonthlyReportGrid'
 
 const MARGIN = 14
@@ -31,7 +32,10 @@ export function exportTestMonthlyReportPdf(params: {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.text('Bridgeport PUD Arsenic Plant Weekly Field Testing', pageW / 2, y, { align: 'center' })
-  y += 20
+  y += 16
+  doc.setFontSize(11)
+  doc.text(FIELD_KIT_DATA_LABEL, pageW / 2, y, { align: 'center' })
+  y += 16
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
   doc.text(`Month: ${formatMonthTitle(monthKey)}`, pageW / 2, y, { align: 'center' })

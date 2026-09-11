@@ -13,8 +13,9 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import type { LogEntry } from '../types/entry'
+import { docToLogEntry, LOG_ENTRIES_COLLECTION } from './logEntryDoc'
 
-const COLLECTION = 'logEntries'
+const COLLECTION = LOG_ENTRIES_COLLECTION
 
 export async function fetchEntriesForLocation(locationId: string): Promise<LogEntry[]> {
   const q = query(
@@ -23,17 +24,7 @@ export async function fetchEntriesForLocation(locationId: string): Promise<LogEn
     orderBy('submittedAt', 'desc')
   )
   const snap = await getDocs(q)
-  return snap.docs.map((d) => {
-    const data = d.data()
-    return {
-      id: d.id,
-      locationId: data.locationId as string,
-      locationName: data.locationName as string,
-      entryDate: data.entryDate as string,
-      submittedAt: data.submittedAt ?? null,
-      values: (data.values as Record<string, string>) ?? {},
-    }
-  })
+  return snap.docs.map(docToLogEntry)
 }
 
 export function subscribeEntriesForLocation(
@@ -49,20 +40,7 @@ export function subscribeEntriesForLocation(
 
   return onSnapshot(
     q,
-    (snap) => {
-      const list: LogEntry[] = snap.docs.map((d) => {
-        const data = d.data()
-        return {
-          id: d.id,
-          locationId: data.locationId as string,
-          locationName: data.locationName as string,
-          entryDate: data.entryDate as string,
-          submittedAt: data.submittedAt ?? null,
-          values: (data.values as Record<string, string>) ?? {},
-        }
-      })
-      onData(list)
-    },
+    (snap) => onData(snap.docs.map(docToLogEntry)),
     (err) => onError?.(err as Error)
   )
 }
@@ -71,13 +49,16 @@ export async function saveEntry(input: {
   locationId: string
   locationName: string
   entryDate: string
+  operator: string
   values: Record<string, string>
 }): Promise<void> {
   await addDoc(collection(db, COLLECTION), {
     locationId: input.locationId,
     locationName: input.locationName,
     entryDate: input.entryDate,
+    operator: input.operator.trim(),
     values: input.values,
+    // Written by the Firestore server at submission time: this is the work-log timestamp.
     submittedAt: serverTimestamp(),
   })
 }

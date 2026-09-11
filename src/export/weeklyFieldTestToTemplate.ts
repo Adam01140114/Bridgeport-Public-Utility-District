@@ -48,7 +48,8 @@ function hasValue(raw: string): boolean {
   return raw.length > 0
 }
 
-function weekDateIso(bundle: WeekFieldTestBundle): string {
+/** Date typed in the weekly form header, or the first day of that week slice. */
+export function weekDateIso(bundle: WeekFieldTestBundle): string {
   const header = bundle.values['header:date']?.trim() ?? ''
   if (ISO_DATE_RE.test(header)) return header
   return bundle.fallbackDateIso

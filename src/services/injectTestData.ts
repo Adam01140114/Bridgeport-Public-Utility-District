@@ -67,6 +67,8 @@ function valueForField(f: FieldDef, dateStr: string, salt: number): string {
       const opts = f.options?.length ? f.options : ['On']
       return opts[n % opts.length] ?? opts[0]
     }
+    case 'number':
+      return String(n % 3)
     case 'text':
     default:
       return String(100 + (n % 899))
@@ -205,6 +207,7 @@ export async function injectTestDataForAllLocations(): Promise<InjectTestDataRes
           locationId: row.locationId,
           locationName: row.locationName,
           entryDate: row.entryDate,
+          operator: 'Test data',
           values: row.values,
           submittedAt: serverTimestamp(),
         })

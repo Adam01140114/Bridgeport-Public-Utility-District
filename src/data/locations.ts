@@ -1,4 +1,4 @@
-export type FieldType = 'text' | 'textarea' | 'date' | 'time' | 'select'
+export type FieldType = 'text' | 'number' | 'textarea' | 'date' | 'time' | 'select'
 
 export interface FieldDef {
   key: string
@@ -141,6 +141,14 @@ const twinLakesFields: FieldDef[] = [
     key: 'outletPsi',
     label: 'Outlet PSI',
     type: 'text',
+    gridClass: 'sm:col-span-1',
+    cadence: 'daily',
+  },
+  {
+    key: 'backwashes',
+    label: 'Backwashes performed',
+    type: 'number',
+    placeholder: '0',
     gridClass: 'sm:col-span-1',
     cadence: 'daily',
   },
@@ -387,6 +395,12 @@ export const LOCATIONS: LocationDef[] = [
     fields: tankFields,
   },
 ]
+
+/** Twin Lakes Well I Arsenic Plant: the only site where filter backwashes are logged. */
+export const BACKWASH_LOCATION_ID = 'twin-lakes-well-i-arsenic-plant'
+
+/** Daily-log key holding the number of backwashes performed that day (Twin Lakes only). */
+export const BACKWASH_FIELD_KEY = 'backwashes'
 
 export function getLocationById(id: string): LocationDef | undefined {
   return LOCATIONS.find((l) => l.id === id)

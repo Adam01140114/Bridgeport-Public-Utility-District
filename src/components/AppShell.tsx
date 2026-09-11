@@ -56,6 +56,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   All records
                 </Link>
                 <Link
+                  to="/work-log"
+                  className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
+                >
+                  Work log
+                </Link>
+                <Link
                   to="/admin/settings"
                   className="inline-flex min-h-[48px] min-w-0 flex-1 items-center justify-center rounded-xl px-4 text-center text-sm font-medium ring-1 ring-white/25 transition hover:bg-white/10 sm:min-h-0 sm:flex-none sm:rounded-lg sm:px-3 sm:py-2 sm:text-left sm:text-xs"
                 >

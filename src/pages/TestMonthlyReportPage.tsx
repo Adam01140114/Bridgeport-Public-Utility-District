@@ -16,7 +16,16 @@ import {
   type RowTemplate,
 } from '../data/testMonthlyReportLayout'
 import { exportMonthlyFieldTestReportXlsx } from '../excel/testMonthlyReportXlsx'
+import { FIELD_KIT_DATA_LABEL } from '../export/monthlyReportNotes'
 import { exportTestMonthlyReportPdf } from '../pdf/testMonthlyReportPdf'
+import { computeMonthlyBackwashCount } from '../services/backwashes'
+import {
+  EMPTY_MONTHLY_REPORT_META,
+  fetchMonthlyReportMeta,
+  persistMonthlyReportMeta,
+  resolveBackwashCount,
+  type MonthlyReportMeta,
+} from '../services/monthlyReportMeta'
 import {
   fetchWeeklyFieldTestValues,
   fetchWeeklyFieldTestValuesForMonth,
@@ -158,18 +167,99 @@ function normalizeHeaderTimeForNative(s: string): string {
   return ''
 }
 
+/** Month-level report inputs: backwash count (auto from Twin Lakes daily logs) and report notes. */
+function MonthReportPanel({
+  monthKey,
+  meta,
+  onMetaChange,
+  backwashesLogged,
+  metaSaveStatus,
+}: {
+  monthKey: string
+  meta: MonthlyReportMeta
+  onMetaChange: (patch: Partial<MonthlyReportMeta>) => void
+  backwashesLogged: number | null
+  metaSaveStatus: 'idle' | 'saving' | 'saved'
+}) {
+  const idSuffix = monthKey.replace(/[^a-zA-Z0-9]/g, '-')
+  const effective = backwashesLogged === null ? null : resolveBackwashCount(meta, backwashesLogged)
+  return (
+    <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-white/20 bg-white/95 p-5 text-left shadow-lg ring-1 ring-white/40 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-base font-semibold text-bpud-deep sm:text-lg">Monthly report details</h3>
+        <span className="text-xs font-medium text-slate-500">
+          {metaSaveStatus === 'saving' ? 'Saving…' : metaSaveStatus === 'saved' ? 'Saved' : 'Cloud sync on'}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">
+        Printed on the Excel report under the gallons rows and in the Observations box.
+      </p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Backwashes this month
+          </p>
+          <p className="mt-1 text-3xl font-bold tabular-nums text-bpud-deep">
+            {effective === null ? '…' : effective}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {backwashesLogged === null
+              ? 'Adding up the Twin Lakes daily logs…'
+              : `${backwashesLogged} logged on the Twin Lakes daily log for ${formatMonthTitle(monthKey)}.`}
+          </p>
+          <label htmlFor={`tmr-backwash-${idSuffix}`} className="mt-3 block text-xs font-semibold text-slate-700">
+            Override (optional)
+          </label>
+          <input
+            id={`tmr-backwash-${idSuffix}`}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={1}
+            value={meta.backwashesOverride}
+            onChange={(e) => onMetaChange({ backwashesOverride: e.target.value })}
+            placeholder="Leave blank to use the daily-log total"
+            className="mt-1 w-full rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-600"
+          />
+        </div>
+        <div>
+          <label htmlFor={`tmr-month-notes-${idSuffix}`} className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Report notes
+          </label>
+          <textarea
+            id={`tmr-month-notes-${idSuffix}`}
+            rows={6}
+            value={meta.notes}
+            onChange={(e) => onMetaChange({ notes: e.target.value })}
+            placeholder="Anything DDW should know about this month. Each week's “Additional notes” are added after these automatically."
+            className="mt-1 min-h-[9rem] w-full resize-y rounded-md border border-slate-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-600"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function WeekPicker({
   monthKey,
   onSelectWeek,
   onBackToMonth,
   onExportExcel,
   exportBusy,
+  meta,
+  onMetaChange,
+  backwashesLogged,
+  metaSaveStatus,
 }: {
   monthKey: string
   onSelectWeek: (weekIndex: number) => void
   onBackToMonth: () => void
   onExportExcel: () => void | Promise<void>
   exportBusy?: boolean
+  meta: MonthlyReportMeta
+  onMetaChange: (patch: Partial<MonthlyReportMeta>) => void
+  backwashesLogged: number | null
+  metaSaveStatus: 'idle' | 'saving' | 'saved'
 }) {
   const weeks = useMemo(() => weekSlicesInMonth(monthKey), [monthKey])
   return (
@@ -202,6 +292,13 @@ function WeekPicker({
           </button>
         ))}
       </div>
+      <MonthReportPanel
+        monthKey={monthKey}
+        meta={meta}
+        onMetaChange={onMetaChange}
+        backwashesLogged={backwashesLogged}
+        metaSaveStatus={metaSaveStatus}
+      />
       <div className="mt-8 flex justify-center">
         <button
           type="button"
@@ -447,6 +544,91 @@ export function TestMonthlyReportPage() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [exportBusy, setExportBusy] = useState(false)
 
+  // Month-level report details (backwash override + notes) and the auto backwash total.
+  const [monthMeta, setMonthMeta] = useState<MonthlyReportMeta>(EMPTY_MONTHLY_REPORT_META)
+  const monthMetaRef = useRef(monthMeta)
+  const monthMetaDirtyRef = useRef(false)
+  const monthMetaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [metaSaveStatus, setMetaSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [backwashesLogged, setBackwashesLogged] = useState<number | null>(null)
+
+  const persistMonthMetaNow = useCallback(async (monthKey: string, opts?: { silent?: boolean }) => {
+    if (monthMetaTimerRef.current) {
+      clearTimeout(monthMetaTimerRef.current)
+      monthMetaTimerRef.current = null
+    }
+    if (!monthMetaDirtyRef.current) return
+    try {
+      if (!opts?.silent) setMetaSaveStatus('saving')
+      await persistMonthlyReportMeta(monthKey, monthMetaRef.current)
+      monthMetaDirtyRef.current = false
+      if (!opts?.silent) {
+        setMetaSaveStatus('saved')
+        window.setTimeout(() => setMetaSaveStatus('idle'), 2000)
+      }
+    } catch (e) {
+      setFirestoreError(e instanceof Error ? e.message : 'Could not save report details.')
+      setMetaSaveStatus('idle')
+    }
+  }, [])
+
+  const onMonthMetaChange = useCallback(
+    (patch: Partial<MonthlyReportMeta>) => {
+      if (!activeMonthKey) return
+      const monthKey = activeMonthKey
+      setMonthMeta((prev) => {
+        const next = { ...prev, ...patch }
+        monthMetaRef.current = next
+        return next
+      })
+      monthMetaDirtyRef.current = true
+      if (monthMetaTimerRef.current) clearTimeout(monthMetaTimerRef.current)
+      monthMetaTimerRef.current = setTimeout(() => {
+        monthMetaTimerRef.current = null
+        void persistMonthMetaNow(monthKey)
+      }, 750)
+    },
+    [activeMonthKey, persistMonthMetaNow],
+  )
+
+  useEffect(() => {
+    if (!activeMonthKey) return
+    const monthKey = activeMonthKey
+    let cancelled = false
+    setMonthMeta(EMPTY_MONTHLY_REPORT_META)
+    monthMetaRef.current = EMPTY_MONTHLY_REPORT_META
+    monthMetaDirtyRef.current = false
+    setBackwashesLogged(null)
+    fetchMonthlyReportMeta(monthKey)
+      .then((meta) => {
+        if (cancelled || monthMetaDirtyRef.current) return
+        monthMetaRef.current = meta
+        setMonthMeta(meta)
+      })
+      .catch((e) => {
+        if (!cancelled) setFirestoreError(e instanceof Error ? e.message : 'Could not load report details.')
+      })
+    computeMonthlyBackwashCount(monthKey)
+      .then((n) => {
+        if (!cancelled) setBackwashesLogged(n)
+      })
+      .catch((e) => {
+        if (!cancelled) setFirestoreError(e instanceof Error ? e.message : 'Could not count backwashes.')
+      })
+    return () => {
+      cancelled = true
+      // Leaving this month: flush any unsaved details before state resets for the next month.
+      if (monthMetaTimerRef.current) {
+        clearTimeout(monthMetaTimerRef.current)
+        monthMetaTimerRef.current = null
+      }
+      if (monthMetaDirtyRef.current) {
+        monthMetaDirtyRef.current = false
+        void persistMonthlyReportMeta(monthKey, monthMetaRef.current).catch(console.error)
+      }
+    }
+  }, [activeMonthKey])
+
   const [tableMotion, setTableMotion] = useState<{ seq: number; dir: 'left' | 'right' | null }>({
     seq: 0,
     dir: null,
@@ -513,6 +695,7 @@ export function TestMonthlyReportPage() {
   const exportMonthExcel = useCallback(async () => {
     if (!activeMonthKey) return
     if (storageKey) await flushPendingPersist(storageKey)
+    await persistMonthMetaNow(activeMonthKey, { silent: true })
     setExportBusy(true)
     try {
       const slices = weekSlicesInMonth(activeMonthKey)
@@ -528,7 +711,13 @@ export function TestMonthlyReportPage() {
           fallbackDateIso: toIsoDateLocal(slice.start),
         }
       })
-      await exportMonthlyFieldTestReportXlsx({ monthKey: activeMonthKey, weeks })
+      const logged = backwashesLogged ?? (await computeMonthlyBackwashCount(activeMonthKey))
+      await exportMonthlyFieldTestReportXlsx({
+        monthKey: activeMonthKey,
+        weeks,
+        monthNotes: monthMetaRef.current.notes,
+        backwashCount: resolveBackwashCount(monthMetaRef.current, logged),
+      })
     } catch (e) {
       console.error(e)
       window.alert(
@@ -537,7 +726,7 @@ export function TestMonthlyReportPage() {
     } finally {
       setExportBusy(false)
     }
-  }, [activeMonthKey, storageKey, flushPendingPersist])
+  }, [activeMonthKey, storageKey, flushPendingPersist, persistMonthMetaNow, backwashesLogged])
 
   const onFieldChange = useCallback(
     (key: string, v: string) => {
@@ -702,6 +891,10 @@ export function TestMonthlyReportPage() {
           onBackToMonth={goToChangeMonth}
           onExportExcel={exportMonthExcel}
           exportBusy={exportBusy}
+          meta={monthMeta}
+          onMetaChange={onMonthMetaChange}
+          backwashesLogged={backwashesLogged}
+          metaSaveStatus={metaSaveStatus}
         />
       </div>
     )
@@ -756,6 +949,9 @@ export function TestMonthlyReportPage() {
           <h2 className="text-base font-bold tracking-wide text-slate-900 sm:text-lg">
             Bridgeport PUD Arsenic Plant Weekly Field Testing
           </h2>
+          <p className="mt-1 inline-flex rounded-md border border-slate-800 bg-slate-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-900">
+            {FIELD_KIT_DATA_LABEL}
+          </p>
           <p className="mt-1 text-xs font-medium text-slate-600">
             Month: {formatMonthTitle(activeMonthKey)}
           </p>

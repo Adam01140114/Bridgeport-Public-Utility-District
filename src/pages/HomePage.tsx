@@ -60,7 +60,8 @@ export function HomePage() {
         <div className="mb-4 sm:mb-5">
           <h2 className="text-xl font-semibold text-bpud-deep sm:text-2xl">Daily Logs</h2>
           <p className="mt-1.5 text-sm text-slate-600">
-            Select a site to record or review daily operational entries.
+            Select a site to record or review daily operational entries. Every entry is
+            time-stamped automatically when it is saved.
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3">
@@ -86,6 +87,29 @@ export function HomePage() {
           ))}
         </ul>
       </section>
+
+      <Link
+        to="/work-log"
+        className="group relative block overflow-hidden rounded-2xl border border-sky-300/70 bg-white p-6 shadow-lg shadow-sky-900/10 ring-1 ring-sky-200/70 transition hover:-translate-y-0.5 hover:border-sky-400 hover:shadow-xl sm:p-7"
+      >
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700/90">
+              Crew activity
+            </p>
+            <h2 className="mt-1 text-xl font-semibold leading-tight text-bpud-deep sm:text-2xl">
+              Daily Work Log
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+              Automatic time stamps for every submission: who logged it, which site, and when.
+              Review by week and export a PDF or Excel weekly log.
+            </p>
+          </div>
+          <span className="mt-3 inline-flex shrink-0 items-center self-start rounded-xl bg-bpud-water px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-bpud-water/25 transition group-hover:bg-[#185a9e] sm:mt-1">
+            Open →
+          </span>
+        </div>
+      </Link>
     </div>
   )
 }

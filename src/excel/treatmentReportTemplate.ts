@@ -6,7 +6,11 @@ import {
   weekRowDate,
 } from '../data/treatmentReport'
 import type { TreatmentCategory } from '../data/treatmentReport'
-import { WEEKLY_SHEET_SUMMARY } from '../export/monthlyReportNotes'
+import {
+  WEEKLY_SHEET_FIELD_KIT_LABEL,
+  WEEKLY_SHEET_NOTES,
+  WEEKLY_SHEET_SUMMARY,
+} from '../export/monthlyReportNotes'
 import {
   buildWeeklyTemplateCells,
   type WeekFieldTestBundle,
@@ -164,13 +168,84 @@ export function fillWeeklySheetSummary(ws: ExcelJS.Worksheet, usage: MonthlyMete
   }
 }
 
+/** Deep copy so later edits to one cell never leak into the template cell it was cloned from. */
+function cloneStyle(src: ExcelJS.Cell): Partial<ExcelJS.Style> {
+  return JSON.parse(JSON.stringify(src.style ?? {})) as Partial<ExcelJS.Style>
+}
+
+/** "Field Kit Data" banner on the blank row between the month line and the table header. */
+export function fillWeeklySheetFieldKitLabel(ws: ExcelJS.Worksheet): void {
+  const { row, firstCol, lastCol, text } = WEEKLY_SHEET_FIELD_KIT_LABEL
+  const cell = ws.getRow(row).getCell(firstCol)
+  cell.value = text
+  cell.font = { bold: true, size: 12, color: { argb: BLACK_FONT_ARGB } }
+  cell.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.mergeCells(row, firstCol, row, lastCol)
+}
+
+/** "Number of Backwashes this month" row, styled like the gallons rows directly above it. */
+export function fillWeeklySheetBackwashes(ws: ExcelJS.Worksheet, count: number): void {
+  const { backwashesRow, gallonsTwinRow, gallonsValueCol, backwashesLabel } = WEEKLY_SHEET_SUMMARY
+  const src = ws.getRow(gallonsTwinRow)
+  const dst = ws.getRow(backwashesRow)
+  for (let col = 1; col <= gallonsValueCol; col++) {
+    dst.getCell(col).style = cloneStyle(src.getCell(col))
+  }
+  dst.getCell(1).value = backwashesLabel
+  dst.getCell(2).value = null
+  dst.getCell(gallonsValueCol).value = count
+}
+
+/**
+ * Write note lines into the Observations box (one line per row, D:H merged). If there are more
+ * lines than template rows, a middle row of the box is duplicated so the borders stay intact
+ * and the static sample-point IDs in column A keep their order.
+ */
+export function fillWeeklySheetNotes(ws: ExcelJS.Worksheet, lines: string[]): void {
+  if (lines.length === 0) return
+  const { firstRow, lastRow, firstCol, lastCol } = WEEKLY_SHEET_NOTES
+  const templateRows = lastRow - firstRow + 1
+  const extra = Math.max(0, lines.length - templateRows)
+
+  if (extra > 0) {
+    const staticColumnA = Array.from({ length: templateRows }, (_, i) =>
+      ws.getRow(firstRow + i).getCell(1).value,
+    )
+    const middleRow = lastRow - 1
+    ws.duplicateRow(middleRow, extra, true)
+    const newLastRow = lastRow + extra
+    for (let row = firstRow; row <= newLastRow; row++) {
+      ws.getRow(row).getCell(1).value = staticColumnA[row - firstRow] ?? null
+    }
+  }
+
+  lines.forEach((line, i) => {
+    const row = firstRow + i
+    const cell = ws.getRow(row).getCell(firstCol)
+    // Merging copies the first cell's style across the range, which would drop the box's
+    // right edge (kept on the last column); carry both outer edges onto the merged cell.
+    const leftEdge = cell.border?.left
+    const rightEdge = ws.getRow(row).getCell(lastCol).border?.right
+    cell.value = line
+    cell.font = { size: 12, color: { argb: BLACK_FONT_ARGB } }
+    cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: false }
+    ws.mergeCells(row, firstCol, row, lastCol)
+    cell.border = {
+      ...(leftEdge ? { left: leftEdge } : {}),
+      ...(rightEdge ? { right: rightEdge } : {}),
+    }
+  })
+}
+
 export function fillWeeklySheetFromFieldTests(
   ws: ExcelJS.Worksheet,
   monthKey: string,
   bundles: WeekFieldTestBundle[],
-  usage: MonthlyMeterUsage
+  usage: MonthlyMeterUsage,
+  extras: { backwashCount: number; noteLines: string[] },
 ): void {
   ws.getCell(WEEKLY_MONTH_CELL).value = formatMonthTitle(monthKey)
+  fillWeeklySheetFieldKitLabel(ws)
 
   const { values, dates } = buildWeeklyTemplateCells(bundles)
   for (const { row, dateIso } of dates) {
@@ -181,6 +256,9 @@ export function fillWeeklySheetFromFieldTests(
   }
 
   fillWeeklySheetSummary(ws, usage)
+  fillWeeklySheetBackwashes(ws, extras.backwashCount)
+  // Notes last: it may insert rows, and everything above it uses fixed row numbers.
+  fillWeeklySheetNotes(ws, extras.noteLines)
 }
 
 function clearFeDayRow(ws: ExcelJS.Worksheet, row: number): void {

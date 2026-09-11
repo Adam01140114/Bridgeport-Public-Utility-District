@@ -97,6 +97,23 @@ function FieldInput({
     )
   }
 
+  if (def.type === 'number') {
+    return (
+      <input
+        id={def.key}
+        name={def.key}
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step={1}
+        className={base}
+        placeholder={def.placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    )
+  }
+
   return (
     <input
       id={def.key}
@@ -108,6 +125,24 @@ function FieldInput({
       onChange={(e) => onChange(e.target.value)}
     />
   )
+}
+
+const OPERATOR_STORAGE_KEY = 'bpud.operatorName'
+
+function readRememberedOperator(): string {
+  try {
+    return window.localStorage.getItem(OPERATOR_STORAGE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function rememberOperator(name: string): void {
+  try {
+    window.localStorage.setItem(OPERATOR_STORAGE_KEY, name)
+  } catch {
+    /* private mode or blocked storage: the name is still saved on the entry */
+  }
 }
 
 function formatSubmittedAt(entry: LogEntry): string {
@@ -206,7 +241,10 @@ function SavedEntryCard({
           <span className="text-base font-semibold text-bpud-ink sm:text-sm">
             {entry.entryDate || '—'}
           </span>
-          <span className="text-sm text-slate-500 sm:text-xs">Submitted {formatSubmittedAt(entry)}</span>
+          <span className="text-sm text-slate-500 sm:text-xs">
+            Submitted {formatSubmittedAt(entry)}
+            {entry.operator.trim() ? ` by ${entry.operator.trim()}` : ''}
+          </span>
         </div>
         <button
           type="button"
@@ -241,6 +279,7 @@ export function LocationLogPage() {
   const location = getLocationById(locationId)
 
   const [values, setValues] = useState<Record<string, string>>({})
+  const [operator, setOperator] = useState<string>(readRememberedOperator)
   const [entries, setEntries] = useState<LogEntry[]>([])
   const [firestoreError, setFirestoreError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -336,10 +375,12 @@ export function LocationLogPage() {
 
   const entryDate = values.date ?? ''
 
+  const operatorTrimmed = operator.trim()
+
   const canSubmit = useMemo(() => {
     if (!location) return false
-    return Boolean(entryDate.trim())
-  }, [location, entryDate])
+    return Boolean(entryDate.trim()) && operatorTrimmed.length > 0
+  }, [location, entryDate, operatorTrimmed])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -416,8 +457,10 @@ export function LocationLogPage() {
         locationId: location.id,
         locationName: location.name,
         entryDate: entryDate.trim(),
+        operator: operatorTrimmed,
         values: normalizeEntryValuesForSave(location.id, values),
       })
+      rememberOperator(operatorTrimmed)
 
       for (const conflict of weeklyConflicts) {
         await deleteTreatmentEntry(conflict.id)
@@ -492,11 +535,33 @@ export function LocationLogPage() {
       <section className="rounded-2xl bg-white/95 p-5 shadow-xl shadow-black/15 ring-1 ring-white/60 sm:p-8">
         <h2 className="text-lg font-semibold text-bpud-deep sm:text-xl">New entry</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:mt-1">
-          Fill in today&apos;s readings. Date is required; everything else is optional unless your
-          procedure says otherwise.
+          Fill in today&apos;s readings. Your name and the date are required; everything else is
+          optional unless your procedure says otherwise. The exact time you tap Save is recorded
+          automatically for the work log.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-6 sm:space-y-6">
+          <div className="rounded-xl border border-sky-200/90 bg-sky-50/60 p-4 sm:p-5">
+            <label
+              htmlFor="operatorName"
+              className="mb-2 block text-sm font-semibold text-slate-700 sm:mb-1.5 sm:text-xs sm:uppercase sm:tracking-wide sm:text-slate-500"
+            >
+              Operator (your name or initials)
+            </label>
+            <input
+              id="operatorName"
+              name="operatorName"
+              type="text"
+              autoComplete="name"
+              placeholder="e.g. J.D."
+              value={operator}
+              onChange={(e) => setOperator(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-base leading-normal text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/25 min-h-[52px] sm:min-h-[44px] sm:max-w-sm sm:rounded-lg sm:px-3 sm:py-2.5 sm:text-sm"
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              Remembered on this device so you only type it once. Saved with every entry.
+            </p>
+          </div>
           <div className="space-y-4 rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
             <div className="flex items-center gap-2">
               <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">

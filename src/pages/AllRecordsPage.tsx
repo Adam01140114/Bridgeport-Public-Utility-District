@@ -103,7 +103,8 @@ export function AllRecordsPage() {
                           Log date: {entry.entryDate || '—'}
                         </span>
                         <span className="text-sm text-slate-500 sm:text-xs">
-                          {formatSubmittedAt(entry)}
+                          Submitted {formatSubmittedAt(entry)}
+                          {entry.operator.trim() ? ` by ${entry.operator.trim()}` : ''}
                         </span>
                       </div>
                       {fields.length ? (

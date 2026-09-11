@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage'
 import { LocationLogPage } from './pages/LocationLogPage'
 import { TestMonthlyReportPage } from './pages/TestMonthlyReportPage'
 import { TreatmentReportPage } from './pages/TreatmentReportPage'
+import { WorkLogPage } from './pages/WorkLogPage'
 
 export default function App() {
   const base = import.meta.env.BASE_URL
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/records" element={<AllRecordsPage />} />
+          <Route path="/work-log" element={<WorkLogPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/location/:locationId" element={<LocationLogPage />} />
           <Route path="/treatment-report" element={<TreatmentReportPage />} />
